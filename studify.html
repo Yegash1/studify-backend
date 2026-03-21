@@ -1,0 +1,1932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studify — Find Your Focus</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{--navy:#0f1f3d;--blue:#1a3a6b;--accent:#e8a020;--teal:#1a8a8a;--coral:#d94f2b;--bg:#f0ede8;--white:#fafaf8;--grid:rgba(15,31,61,0.06);}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--navy);overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+.page{display:none;min-height:100vh;position:relative;z-index:1;}
+.page.active{display:block;}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:1rem 5%;background:rgba(240,237,232,0.95);backdrop-filter:blur(12px);border-bottom:1px solid rgba(15,31,61,0.1);}
+.nav-logo{display:flex;align-items:center;gap:0.6rem;text-decoration:none;cursor:pointer;}
+.logo-icon{width:42px;height:42px;border-radius:10px;overflow:hidden;display:grid;place-items:center;}
+.logo-icon img{width:100%;height:100%;object-fit:contain;}
+.logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;color:var(--navy);letter-spacing:-0.03em;}
+.nav-links{display:flex;gap:2rem;list-style:none;align-items:center;}
+.nav-links a{text-decoration:none;color:var(--navy);font-size:0.88rem;font-weight:500;opacity:0.7;transition:opacity 0.2s;cursor:pointer;}
+.nav-links a:hover{opacity:1;}
+.nav-cta{background:var(--navy);color:var(--white)!important;opacity:1!important;padding:0.55rem 1.3rem;border-radius:100px;font-size:0.82rem!important;}
+.nav-user{display:flex;align-items:center;gap:0.8rem;}
+.nav-user-name{font-size:0.85rem;font-weight:600;color:var(--navy);}
+.nav-avatar{width:34px;height:34px;border-radius:50%;background:var(--teal);color:#fff;display:grid;place-items:center;font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem;}
+.nav-avatar.admin-av{background:var(--accent);color:var(--navy);}
+.admin-badge-nav{background:var(--accent);color:var(--navy);font-size:0.65rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:100px;letter-spacing:0.06em;text-transform:uppercase;}
+.btn-logout{background:transparent;border:1.5px solid rgba(15,31,61,0.2);color:var(--navy);padding:0.45rem 1rem;border-radius:100px;font-size:0.78rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.btn-logout:hover{background:var(--navy);color:#fff;}
+
+/* HERO */
+.hero{padding:8rem 5% 4rem;position:relative;overflow:hidden;}
+.hero-shapes{position:absolute;inset:0;pointer-events:none;}
+.shape{position:absolute;border-radius:50%;}
+.shape-1{width:300px;height:300px;background:var(--accent);opacity:0.15;top:-80px;right:10%;border-radius:40% 60% 70% 30%/40% 50% 60% 50%;animation:morph 8s ease-in-out infinite;}
+.shape-2{width:180px;height:180px;background:var(--teal);opacity:0.2;bottom:15%;right:5%;animation:float 6s ease-in-out infinite;}
+.shape-3{width:80px;height:80px;background:var(--coral);opacity:0.5;top:30%;left:45%;clip-path:polygon(50% 0%,0% 100%,100% 100%);animation:spin 20s linear infinite;}
+@keyframes morph{0%,100%{border-radius:40% 60% 70% 30%/40% 50% 60% 50%;}50%{border-radius:60% 40% 30% 70%/60% 30% 70% 40%;}}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-20px);}}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.hero-tag{display:inline-flex;align-items:center;gap:0.5rem;background:var(--navy);color:var(--accent);font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:0.4rem 1rem;border-radius:100px;margin-bottom:2rem;width:fit-content;}
+.hero-tag::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.5;transform:scale(1.5);}}
+h1{font-family:'Syne',sans-serif;font-size:clamp(3.5rem,8vw,7rem);font-weight:800;line-height:0.95;letter-spacing:-0.04em;color:var(--navy);max-width:800px;}
+h1 .highlight{color:var(--teal);position:relative;display:inline-block;}
+h1 .highlight::after{content:'';position:absolute;bottom:0;left:0;right:0;height:4px;background:var(--accent);border-radius:2px;}
+.hero-sub{font-size:1.15rem;font-weight:300;color:var(--navy);opacity:0.65;max-width:480px;line-height:1.7;margin-top:1.8rem;}
+.hero-actions{display:flex;gap:1rem;margin-top:2.5rem;}
+.btn-primary{background:var(--navy);color:var(--white);padding:0.9rem 2rem;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:500;text-decoration:none;border:none;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;display:inline-flex;align-items:center;gap:0.5rem;}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(15,31,61,0.25);}
+.btn-secondary{background:transparent;color:var(--navy);padding:0.9rem 2rem;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:500;text-decoration:none;border:2px solid var(--navy);cursor:pointer;transition:background 0.2s,color 0.2s;}
+.btn-secondary:hover{background:var(--navy);color:var(--white);}
+.hero-stats{display:flex;gap:3rem;margin-top:4rem;padding-top:2rem;border-top:1px solid rgba(15,31,61,0.12);}
+.stat-num{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--navy);}
+.stat-label{font-size:0.8rem;opacity:0.55;margin-top:0.2rem;}
+
+/* SECTIONS */
+section.section-block{position:relative;z-index:1;padding:5rem 5%;}
+.section-tag{font-size:0.72rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--teal);margin-bottom:0.8rem;}
+h2{font-family:'Syne',sans-serif;font-size:clamp(2rem,4vw,3.2rem);font-weight:800;letter-spacing:-0.03em;line-height:1.1;color:var(--navy);}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:3.5rem;position:relative;}
+.steps::before{content:'';position:absolute;top:3rem;left:16%;right:16%;height:2px;background:linear-gradient(90deg,var(--teal),var(--accent));z-index:0;}
+.step{text-align:center;position:relative;z-index:1;padding:0 1.5rem;}
+.step-num{width:60px;height:60px;background:var(--navy);color:var(--white);font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.5rem;border:3px solid var(--bg);}
+.step:nth-child(2) .step-num{background:var(--teal);}
+.step:nth-child(3) .step-num{background:var(--accent);color:var(--navy);}
+.step h3{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:0.6rem;}
+.step p{font-size:0.88rem;opacity:0.6;line-height:1.6;}
+.features-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;margin-top:3rem;}
+.feature-card{background:var(--white);border-radius:20px;padding:2.2rem;border:1px solid rgba(15,31,61,0.08);transition:transform 0.3s,box-shadow 0.3s;position:relative;overflow:hidden;}
+.feature-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--teal);transform:scaleX(0);transform-origin:left;transition:transform 0.3s;}
+.feature-card:nth-child(2)::before{background:var(--accent);}
+.feature-card:nth-child(3)::before{background:var(--coral);}
+.feature-card:nth-child(4)::before{background:var(--navy);}
+.feature-card:hover{transform:translateY(-4px);box-shadow:0 16px 48px rgba(15,31,61,0.1);}
+.feature-card:hover::before{transform:scaleX(1);}
+.feature-emoji{font-size:2rem;margin-bottom:1rem;}
+.feature-card h3{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;}
+.feature-card p{font-size:0.88rem;opacity:0.6;line-height:1.6;}
+.why-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-top:3rem;}
+.why-card{background:var(--navy);color:var(--white);border-radius:20px;padding:2rem 1.5rem;text-align:center;transition:transform 0.3s;}
+.why-card:nth-child(2){background:var(--teal);margin-top:2rem;}
+.why-card:nth-child(3){background:var(--accent);color:var(--navy);margin-top:1rem;}
+.why-card:nth-child(4){background:var(--coral);}
+.why-card:hover{transform:translateY(-6px) scale(1.02);}
+.why-icon{font-size:2.5rem;margin-bottom:1rem;}
+.why-card h3{font-family:'Syne',sans-serif;font-size:1.05rem;font-weight:700;margin-bottom:0.5rem;}
+.why-card p{font-size:0.82rem;opacity:0.75;line-height:1.5;}
+.cta-box{background:var(--navy);border-radius:28px;padding:5rem 3rem;position:relative;overflow:hidden;text-align:center;}
+.cta-box::before{content:'STUDIFY';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'Syne',sans-serif;font-size:18rem;font-weight:800;color:rgba(255,255,255,0.03);white-space:nowrap;pointer-events:none;}
+.cta-box h2{color:var(--white);font-size:clamp(2rem,4vw,3.5rem);margin:0.5rem auto 1.5rem;max-width:600px;}
+.cta-box p{color:rgba(255,255,255,0.6);font-size:1rem;margin-bottom:2.5rem;font-style:italic;}
+.cta-actions{display:flex;gap:1rem;justify-content:center;}
+.btn-accent{background:var(--accent);color:var(--navy);padding:1rem 2.2rem;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:600;text-decoration:none;border:none;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;}
+.btn-accent:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(232,160,32,0.4);}
+footer{position:relative;z-index:1;background:var(--navy);color:rgba(255,255,255,0.5);text-align:center;padding:2rem 5%;font-size:0.82rem;}
+footer strong{color:var(--white);}
+.members{display:flex;justify-content:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.5rem;}
+.member-tag{background:rgba(255,255,255,0.08);padding:0.25rem 0.7rem;border-radius:100px;font-size:0.75rem;}
+
+/* BROWSE */
+.places-controls{display:flex;flex-wrap:wrap;gap:1rem;align-items:center;margin-top:2.5rem;margin-bottom:2.5rem;}
+.filter-group{display:flex;gap:0.5rem;flex-wrap:wrap;}
+.filter-btn{padding:0.5rem 1.1rem;border-radius:100px;border:1.5px solid rgba(15,31,61,0.18);background:var(--white);color:var(--navy);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:500;cursor:pointer;transition:all 0.2s;}
+.filter-btn:hover,.filter-btn.active{background:var(--navy);color:var(--white);border-color:var(--navy);}
+.filter-btn.cat-computer.active{background:var(--teal);border-color:var(--teal);}
+.filter-btn.cat-library.active{background:var(--blue);border-color:var(--blue);}
+.filter-btn.cat-cafe.active{background:var(--coral);border-color:var(--coral);}
+.star-filter{display:flex;align-items:center;gap:0.4rem;margin-left:auto;background:var(--white);border:1.5px solid rgba(15,31,61,0.18);border-radius:100px;padding:0.4rem 1rem;font-size:0.82rem;font-weight:500;}
+.star-filter label{color:var(--navy);opacity:0.6;white-space:nowrap;}
+.star-filter select{border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;color:var(--navy);cursor:pointer;outline:none;}
+.places-count{font-size:0.82rem;opacity:0.5;margin-bottom:1.5rem;}
+.places-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem;}
+.place-card{background:var(--white);border-radius:20px;overflow:hidden;border:1px solid rgba(15,31,61,0.08);transition:transform 0.3s,box-shadow 0.3s;}
+.place-card:hover{transform:translateY(-5px);box-shadow:0 20px 50px rgba(15,31,61,0.12);}
+.place-img-bg{width:100%;height:160px;display:flex;align-items:center;justify-content:center;font-size:3.5rem;position:relative;}
+.place-badge{position:absolute;top:12px;left:12px;padding:0.25rem 0.7rem;border-radius:100px;font-size:0.68rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;}
+.badge-study{background:#e8f4f4;color:var(--teal);}
+.badge-computer{background:#e8f0ff;color:var(--blue);}
+.badge-cafe{background:#fff0eb;color:var(--coral);}
+.avail-dot{position:absolute;top:12px;right:12px;display:flex;align-items:center;gap:0.3rem;background:rgba(255,255,255,0.92);border-radius:100px;padding:0.25rem 0.6rem;font-size:0.68rem;font-weight:600;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.dot-open{background:#22c55e;}.dot-busy{background:#f59e0b;}.dot-full{background:#ef4444;}
+.place-body{padding:1.2rem 1.3rem 1.4rem;}
+.place-body h3{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:0.25rem;}
+.place-location{font-size:0.78rem;opacity:0.5;margin-bottom:0.7rem;}
+.place-stars{display:flex;align-items:center;gap:0.25rem;margin-bottom:0.7rem;}
+.star{color:#e8a020;font-size:0.85rem;}.star-empty{color:rgba(15,31,61,0.2);font-size:0.85rem;}
+.place-rating-num{font-size:0.78rem;font-weight:600;margin-left:0.2rem;opacity:0.7;}
+.place-tags{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1rem;}
+.place-tag{background:rgba(15,31,61,0.06);color:var(--navy);font-size:0.7rem;padding:0.2rem 0.55rem;border-radius:6px;font-weight:500;}
+.place-footer{display:flex;align-items:center;justify-content:space-between;}
+.place-seats{font-size:0.78rem;opacity:0.55;}
+.btn-reserve{background:var(--navy);color:var(--white);border:none;padding:0.45rem 1rem;border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;transition:background 0.2s,transform 0.2s;}
+.btn-reserve:hover{background:var(--teal);transform:scale(1.04);}
+.btn-reserve:disabled{opacity:0.4;cursor:not-allowed;background:var(--navy);}
+.no-results{grid-column:1/-1;text-align:center;padding:4rem 2rem;opacity:0.4;}
+
+/* AUTH MODAL */
+.auth-overlay{position:fixed;inset:0;z-index:999;background:rgba(10,16,32,0.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+.auth-overlay.open{opacity:1;pointer-events:all;}
+.auth-modal{background:var(--white);border-radius:28px;width:100%;max-width:440px;margin:1rem;overflow:hidden;box-shadow:0 32px 80px rgba(10,16,32,0.25);transform:translateY(24px) scale(0.97);transition:transform 0.3s;position:relative;}
+.auth-overlay.open .auth-modal{transform:translateY(0) scale(1);}
+.auth-modal-close{position:absolute;top:1.2rem;right:1.4rem;background:rgba(15,31,61,0.08);border:none;border-radius:50%;width:34px;height:34px;font-size:1rem;cursor:pointer;display:grid;place-items:center;color:var(--navy);transition:background 0.2s;z-index:2;}
+.auth-modal-close:hover{background:rgba(15,31,61,0.15);}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(15,31,61,0.1);}
+.auth-tab{padding:1.2rem;text-align:center;font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;cursor:pointer;border:none;background:transparent;color:var(--navy);opacity:0.4;border-bottom:3px solid transparent;transition:opacity 0.2s,border-color 0.2s;}
+.auth-tab.active{opacity:1;border-bottom-color:var(--teal);}
+.auth-body{padding:2rem 2.2rem 2.4rem;}
+.auth-logo{display:flex;align-items:center;gap:0.5rem;margin-bottom:1.6rem;}
+.auth-logo-icon{width:38px;height:38px;border-radius:9px;overflow:hidden;display:grid;place-items:center;}
+.auth-logo-icon img{width:100%;height:100%;object-fit:contain;}
+.auth-logo-text{font-family:'Syne',sans-serif;font-weight:800;font-size:1.15rem;color:var(--navy);letter-spacing:-0.03em;}
+.auth-panel{display:none;}
+.auth-panel.active{display:block;}
+.auth-title{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--navy);margin-bottom:0.3rem;}
+.auth-sub{font-size:0.85rem;opacity:0.5;margin-bottom:1.8rem;line-height:1.5;}
+.form-group{margin-bottom:1.1rem;}
+.form-group label{display:block;font-size:0.78rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--navy);opacity:0.6;margin-bottom:0.45rem;}
+.form-group input,.form-group select{width:100%;padding:0.75rem 1rem;border:1.5px solid rgba(15,31,61,0.14);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:0.92rem;color:var(--navy);background:var(--bg);outline:none;transition:border-color 0.2s,box-shadow 0.2s;}
+.form-group input:focus,.form-group select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(26,138,138,0.12);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;}
+.btn-auth{width:100%;padding:0.9rem;background:var(--navy);color:var(--white);border:none;border-radius:12px;font-family:'Syne',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;margin-top:0.5rem;transition:background 0.2s,transform 0.2s;}
+.btn-auth:hover{background:var(--teal);transform:translateY(-1px);}
+.auth-divider{display:flex;align-items:center;gap:0.8rem;margin:1.2rem 0;font-size:0.75rem;opacity:0.35;}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--navy);opacity:0.3;}
+.btn-google{width:100%;padding:0.8rem;background:var(--white);color:var(--navy);border:1.5px solid rgba(15,31,61,0.15);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.6rem;transition:background 0.2s;}
+.btn-google:hover{background:var(--bg);}
+.auth-switch{text-align:center;font-size:0.82rem;margin-top:1.3rem;opacity:0.55;}
+.auth-switch a{color:var(--teal);font-weight:600;text-decoration:none;cursor:pointer;}
+.form-check{display:flex;align-items:flex-start;gap:0.6rem;margin-bottom:1rem;font-size:0.8rem;opacity:0.65;line-height:1.4;}
+.form-check input[type="checkbox"]{width:15px;height:15px;margin-top:1px;flex-shrink:0;accent-color:var(--teal);}
+.auth-success{display:none;text-align:center;padding:3rem 2rem;}
+.auth-success.show{display:block;}
+.auth-panels-wrap.hide{display:none;}
+.success-icon{font-size:3.5rem;margin-bottom:1rem;}
+.auth-success h3{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;color:var(--navy);margin-bottom:0.5rem;}
+.auth-success p{font-size:0.88rem;opacity:0.55;line-height:1.6;}
+.form-error{color:#d94f2b;font-size:0.78rem;margin-top:0.3rem;display:none;}
+.form-error.show{display:block;}
+
+/* USER DASHBOARD */
+.dashboard{padding:7rem 5% 4rem;}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2.5rem;flex-wrap:wrap;gap:1rem;}
+.dash-greeting{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;}
+.dash-greeting span{color:var(--teal);}
+.dash-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;margin-bottom:2.5rem;}
+.dash-card{background:var(--white);border-radius:18px;padding:1.5rem;border:1px solid rgba(15,31,61,0.08);}
+.dash-card-label{font-size:0.75rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;opacity:0.5;margin-bottom:0.5rem;}
+.dash-card-val{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--navy);}
+.dash-card-sub{font-size:0.78rem;opacity:0.5;margin-top:0.2rem;}
+.dash-section-title{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:700;margin-bottom:1.2rem;margin-top:2rem;}
+.reservation-list{display:flex;flex-direction:column;gap:0.8rem;}
+.reservation-item{background:var(--white);border-radius:14px;padding:1.2rem 1.5rem;border:1px solid rgba(15,31,61,0.08);display:flex;align-items:center;gap:1.2rem;transition:box-shadow 0.2s;flex-wrap:wrap;}
+.reservation-item:hover{box-shadow:0 4px 20px rgba(15,31,61,0.08);}
+.res-emoji{font-size:1.8rem;flex-shrink:0;}
+.res-info{flex:1;min-width:180px;}
+.res-name{font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;}
+.res-meta{font-size:0.78rem;opacity:0.5;margin-top:0.2rem;}
+.res-status{padding:0.3rem 0.8rem;border-radius:100px;font-size:0.7rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;}
+.res-status.confirmed{background:#dcfce7;color:#15803d;}
+.res-status.pending{background:#fef9c3;color:#854d0e;}
+.res-status.cancelled{background:#fee2e2;color:#b91c1c;}
+.res-status.approved{background:#dbeafe;color:#1d4ed8;}
+.btn-cancel-res{background:transparent;border:1.5px solid rgba(217,79,43,0.3);color:var(--coral);padding:0.35rem 0.8rem;border-radius:100px;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.btn-cancel-res:hover{background:var(--coral);color:#fff;border-color:var(--coral);}
+.empty-state{text-align:center;padding:3rem;opacity:0.4;}
+.empty-state p{font-size:0.9rem;margin-top:0.5rem;}
+
+/* ADMIN DASHBOARD */
+.admin-dash{padding:7rem 5% 4rem;}
+.admin-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;}
+.admin-title{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;}
+.admin-badge{display:inline-flex;align-items:center;gap:0.4rem;background:var(--accent);color:var(--navy);font-size:0.72rem;font-weight:800;padding:0.3rem 0.8rem;border-radius:100px;letter-spacing:0.06em;text-transform:uppercase;margin-left:0.8rem;}
+.admin-tabs{display:flex;gap:0;border-bottom:2px solid rgba(15,31,61,0.1);margin-bottom:2rem;}
+.admin-tab{padding:0.8rem 1.5rem;font-family:'Syne',sans-serif;font-weight:700;font-size:0.88rem;cursor:pointer;border:none;background:transparent;color:var(--navy);opacity:0.45;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.2s;}
+.admin-tab.active{opacity:1;border-bottom-color:var(--accent);color:var(--navy);}
+.admin-panel{display:none;}
+.admin-panel.active{display:block;}
+.admin-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem;}
+.admin-stat{background:var(--white);border-radius:16px;padding:1.3rem;border:1px solid rgba(15,31,61,0.08);text-align:center;}
+.admin-stat-val{font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;color:var(--navy);}
+.admin-stat-label{font-size:0.72rem;opacity:0.5;text-transform:uppercase;letter-spacing:0.06em;margin-top:0.3rem;}
+
+/* TABLE */
+.admin-table-wrap{background:var(--white);border-radius:18px;border:1px solid rgba(15,31,61,0.08);overflow:hidden;}
+.admin-table-header{display:flex;align-items:center;justify-content:space-between;padding:1.2rem 1.5rem;border-bottom:1px solid rgba(15,31,61,0.08);}
+.admin-table-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;}
+.admin-search{padding:0.5rem 1rem;border:1.5px solid rgba(15,31,61,0.14);border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.82rem;outline:none;background:var(--bg);color:var(--navy);width:220px;transition:border-color 0.2s;}
+.admin-search:focus{border-color:var(--teal);}
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;padding:0.75rem 1rem;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.45;border-bottom:1px solid rgba(15,31,61,0.08);}
+td{padding:0.9rem 1rem;font-size:0.85rem;border-bottom:1px solid rgba(15,31,61,0.05);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(15,31,61,0.02);}
+.tbl-status{padding:0.25rem 0.7rem;border-radius:100px;font-size:0.68rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;}
+.tbl-status.confirmed{background:#dcfce7;color:#15803d;}
+.tbl-status.cancelled{background:#fee2e2;color:#b91c1c;}
+.tbl-status.pending{background:#fef9c3;color:#854d0e;}
+.tbl-status.open{background:#dcfce7;color:#15803d;}
+.tbl-status.busy{background:#fef9c3;color:#854d0e;}
+.tbl-status.full{background:#fee2e2;color:#b91c1c;}
+.tbl-actions{display:flex;gap:0.4rem;flex-wrap:wrap;}
+.btn-tbl{padding:0.3rem 0.7rem;border-radius:100px;font-size:0.7rem;font-weight:600;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;transition:all 0.2s;white-space:nowrap;}
+.btn-tbl-approve{background:#dcfce7;color:#15803d;}
+.btn-tbl-approve:hover{background:#15803d;color:#fff;}
+.btn-tbl-cancel{background:#fee2e2;color:#b91c1c;}
+.btn-tbl-cancel:hover{background:#b91c1c;color:#fff;}
+.btn-tbl-edit{background:rgba(15,31,61,0.08);color:var(--navy);}
+.btn-tbl-edit:hover{background:var(--navy);color:#fff;}
+.btn-tbl-delete{background:#fee2e2;color:#b91c1c;}
+.btn-tbl-delete:hover{background:#b91c1c;color:#fff;}
+.btn-tbl-toggle{background:rgba(26,138,138,0.1);color:var(--teal);}
+.btn-tbl-toggle:hover{background:var(--teal);color:#fff;}
+
+/* PLACE EDIT MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:998;background:rgba(10,16,32,0.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal-box{background:var(--white);border-radius:24px;width:100%;max-width:520px;margin:1rem;box-shadow:0 32px 80px rgba(10,16,32,0.25);transform:translateY(24px) scale(0.97);transition:transform 0.3s;position:relative;max-height:90vh;overflow-y:auto;}
+.modal-overlay.open .modal-box{transform:translateY(0) scale(1);}
+.modal-head{background:var(--navy);padding:1.5rem 2rem;color:white;position:sticky;top:0;z-index:2;}
+.modal-head h3{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:white;}
+.modal-close{position:absolute;top:1rem;right:1.2rem;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:white;font-size:0.9rem;display:grid;place-items:center;}
+.modal-close:hover{background:rgba(255,255,255,0.25);}
+.modal-body{padding:1.8rem 2rem;}
+.modal-actions{display:flex;gap:0.8rem;justify-content:flex-end;margin-top:1.5rem;}
+.btn-save{background:var(--teal);color:white;border:none;padding:0.7rem 1.5rem;border-radius:12px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;cursor:pointer;transition:background 0.2s;}
+.btn-save:hover{background:var(--navy);}
+.btn-modal-cancel{background:rgba(15,31,61,0.08);color:var(--navy);border:none;padding:0.7rem 1.5rem;border-radius:12px;font-family:'DM Sans',sans-serif;font-weight:500;font-size:0.9rem;cursor:pointer;}
+
+/* RESERVATION MODAL */
+.res-overlay{position:fixed;inset:0;z-index:998;background:rgba(10,16,32,0.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+.res-overlay.open{opacity:1;pointer-events:all;}
+.res-modal{background:var(--white);border-radius:24px;width:100%;max-width:480px;margin:1rem;box-shadow:0 32px 80px rgba(10,16,32,0.25);transform:translateY(24px) scale(0.97);transition:transform 0.3s;position:relative;overflow:hidden;}
+.res-overlay.open .res-modal{transform:translateY(0) scale(1);}
+.res-modal-header{background:var(--navy);padding:1.8rem 2rem;color:white;position:relative;}
+.res-modal-header h3{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;color:white;}
+.res-modal-header p{font-size:0.85rem;opacity:0.6;margin-top:0.3rem;}
+.res-modal-close{position:absolute;top:1.2rem;right:1.4rem;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;color:white;font-size:0.9rem;display:grid;place-items:center;}
+.res-modal-body{padding:1.8rem 2rem;}
+.res-form-group{margin-bottom:1.2rem;}
+.res-form-group label{display:block;font-size:0.75rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;opacity:0.55;margin-bottom:0.4rem;}
+.res-form-group input,.res-form-group select{width:100%;padding:0.75rem 1rem;border:1.5px solid rgba(15,31,61,0.14);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--navy);background:var(--bg);outline:none;transition:border-color 0.2s;}
+.res-form-group input:focus,.res-form-group select:focus{border-color:var(--teal);}
+.res-summary{background:var(--bg);border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.2rem;}
+.res-summary-row{display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:0.3rem;}
+.res-summary-row:last-child{margin-bottom:0;font-weight:700;border-top:1px solid rgba(15,31,61,0.1);padding-top:0.4rem;margin-top:0.4rem;}
+.btn-confirm-res{width:100%;padding:0.9rem;background:var(--teal);color:white;border:none;border-radius:12px;font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;transition:background 0.2s,transform 0.2s;}
+.btn-confirm-res:hover{background:var(--navy);transform:translateY(-1px);}
+
+
+/* LOCATION SEARCH BAR */
+.location-search-wrap{display:flex;gap:0.6rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+.location-search{flex:1;min-width:200px;padding:0.65rem 1.1rem;border:1.5px solid rgba(15,31,61,0.18);border-radius:100px;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:var(--navy);background:var(--white);outline:none;transition:border-color 0.2s;}
+.location-search:focus{border-color:var(--teal);}
+.btn-gps{display:flex;align-items:center;gap:0.4rem;padding:0.65rem 1.2rem;border-radius:100px;border:1.5px solid var(--teal);background:var(--white);color:var(--teal);font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+.btn-gps:hover{background:var(--teal);color:#fff;}
+.btn-gps.loading{opacity:0.6;cursor:wait;}
+.distance-badge{position:absolute;bottom:10px;left:12px;background:rgba(15,31,61,0.75);color:#fff;font-size:0.65rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:100px;}
+
+/* PRICE BREAKDOWN in reservation modal */
+.price-live{background:linear-gradient(135deg,var(--teal),#1a6a6a);color:white;border-radius:12px;padding:0.9rem 1.2rem;margin-bottom:1rem;text-align:center;}
+.price-live-label{font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.8;margin-bottom:0.2rem;}
+.price-live-amount{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;}
+.price-live-sub{font-size:0.72rem;opacity:0.7;margin-top:0.1rem;}
+
+
+/* SEAT QUICK ADJUST */
+.seat-adjuster{display:flex;align-items:center;gap:0.4rem;}
+.seat-adj-btn{width:26px;height:26px;border-radius:50%;border:none;font-size:1rem;font-weight:700;cursor:pointer;display:grid;place-items:center;transition:all 0.2s;line-height:1;}
+.seat-adj-minus{background:#fee2e2;color:#b91c1c;}
+.seat-adj-minus:hover{background:#b91c1c;color:#fff;}
+.seat-adj-plus{background:#dcfce7;color:#15803d;}
+.seat-adj-plus:hover{background:#15803d;color:#fff;}
+.seat-count-display{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;min-width:28px;text-align:center;}
+
+/* SEATS OVERVIEW PANEL */
+.seats-overview{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem;}
+.seat-overview-card{background:var(--white);border-radius:16px;padding:1.2rem;border:1px solid rgba(15,31,61,0.08);position:relative;overflow:hidden;}
+.seat-overview-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;}
+.seat-ov-open::before{background:#22c55e;}
+.seat-ov-busy::before{background:#f59e0b;}
+.seat-ov-full::before{background:#ef4444;}
+.seat-ov-name{font-family:'Syne',sans-serif;font-size:0.82rem;font-weight:700;margin-bottom:0.5rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.seat-ov-bar-wrap{background:rgba(15,31,61,0.08);border-radius:100px;height:6px;margin-bottom:0.4rem;}
+.seat-ov-bar{height:6px;border-radius:100px;transition:width 0.4s;}
+.seat-ov-nums{display:flex;justify-content:space-between;font-size:0.72rem;opacity:0.55;}
+
+
+/* OWNER DASHBOARD */
+.owner-dash{padding:7rem 5% 4rem;}
+.owner-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;}
+.owner-title{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;}
+.owner-badge{display:inline-flex;align-items:center;gap:0.4rem;background:#3b82f6;color:white;font-size:0.72rem;font-weight:800;padding:0.3rem 0.8rem;border-radius:100px;letter-spacing:0.06em;text-transform:uppercase;margin-left:0.8rem;}
+.nav-avatar.owner-av{background:#3b82f6;}
+.owner-space-card{background:var(--white);border-radius:24px;padding:2rem;border:1px solid rgba(15,31,61,0.08);margin-bottom:2rem;}
+.owner-space-name{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;margin-bottom:0.3rem;}
+.owner-space-loc{font-size:0.88rem;opacity:0.5;margin-bottom:1.5rem;}
+.owner-seat-control{display:flex;align-items:center;gap:2rem;flex-wrap:wrap;margin-bottom:1.5rem;}
+.owner-seat-big{text-align:center;}
+.owner-seat-num{font-family:'Syne',sans-serif;font-size:3.5rem;font-weight:800;line-height:1;color:var(--navy);}
+.owner-seat-label{font-size:0.78rem;opacity:0.5;text-transform:uppercase;letter-spacing:0.08em;margin-top:0.3rem;}
+.owner-seat-bar-wrap{flex:1;min-width:200px;}
+.owner-seat-bar-bg{background:rgba(15,31,61,0.08);border-radius:100px;height:12px;margin-bottom:0.5rem;}
+.owner-seat-bar-fill{height:12px;border-radius:100px;transition:width 0.4s;}
+.owner-seat-bar-labels{display:flex;justify-content:space-between;font-size:0.78rem;opacity:0.5;}
+.owner-btns{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem;}
+.btn-checkin{background:#22c55e;color:white;border:none;padding:1rem 2rem;border-radius:14px;font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;transition:all 0.2s;}
+.btn-checkin:hover{background:#15803d;transform:translateY(-2px);}
+.btn-checkout{background:#f59e0b;color:var(--navy);border:none;padding:1rem 2rem;border-radius:14px;font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:0.5rem;transition:all 0.2s;}
+.btn-checkout:hover{background:#d97706;transform:translateY(-2px);}
+.btn-bulk{background:rgba(15,31,61,0.08);color:var(--navy);border:none;padding:1rem 1.5rem;border-radius:14px;font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:0.5rem;transition:all 0.2s;}
+.btn-bulk:hover{background:rgba(15,31,61,0.15);}
+.owner-log{background:var(--white);border-radius:18px;border:1px solid rgba(15,31,61,0.08);overflow:hidden;}
+.owner-log-header{padding:1.2rem 1.5rem;border-bottom:1px solid rgba(15,31,61,0.08);font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;display:flex;justify-content:space-between;align-items:center;}
+.owner-log-item{display:flex;align-items:center;gap:1rem;padding:1rem 1.5rem;border-bottom:1px solid rgba(15,31,61,0.05);font-size:0.85rem;}
+.owner-log-item:last-child{border-bottom:none;}
+.log-icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:1rem;flex-shrink:0;}
+.log-checkin{background:#dcfce7;}
+.log-checkout{background:#fef9c3;}
+.log-manual{background:#dbeafe;}
+.log-time{font-size:0.72rem;opacity:0.4;margin-left:auto;white-space:nowrap;}
+.owner-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:2rem;}
+.owner-stat{background:var(--white);border-radius:16px;padding:1.3rem;border:1px solid rgba(15,31,61,0.08);text-align:center;}
+.owner-stat-val{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:var(--navy);}
+.owner-stat-label{font-size:0.72rem;opacity:0.5;text-transform:uppercase;letter-spacing:0.06em;margin-top:0.3rem;}
+.bulk-modal-overlay{position:fixed;inset:0;z-index:999;background:rgba(10,16,32,0.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+.bulk-modal-overlay.open{opacity:1;pointer-events:all;}
+.bulk-modal{background:var(--white);border-radius:24px;width:100%;max-width:380px;margin:1rem;padding:2rem;box-shadow:0 32px 80px rgba(10,16,32,0.25);transform:translateY(20px) scale(0.97);transition:transform 0.3s;}
+.bulk-modal-overlay.open .bulk-modal{transform:translateY(0) scale(1);}
+.bulk-modal h3{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;margin-bottom:1.2rem;}
+.bulk-input{width:100%;padding:0.9rem 1rem;border:1.5px solid rgba(15,31,61,0.14);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:1.5rem;font-weight:700;text-align:center;color:var(--navy);background:var(--bg);outline:none;margin-bottom:1rem;}
+.bulk-input:focus{border-color:var(--teal);}
+
+
+/* RATING MODAL */
+.rating-overlay{position:fixed;inset:0;z-index:999;background:rgba(10,16,32,0.6);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.3s;}
+.rating-overlay.open{opacity:1;pointer-events:all;}
+.rating-modal{background:var(--white);border-radius:24px;width:100%;max-width:420px;margin:1rem;box-shadow:0 32px 80px rgba(10,16,32,0.25);transform:translateY(24px) scale(0.97);transition:transform 0.3s;position:relative;overflow:hidden;}
+.rating-overlay.open .rating-modal{transform:translateY(0) scale(1);}
+.rating-modal-head{background:var(--navy);padding:1.5rem 2rem;position:relative;}
+.rating-modal-head h3{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;color:white;}
+.rating-modal-head p{font-size:0.82rem;opacity:0.6;margin-top:0.3rem;color:white;}
+.rating-modal-close{position:absolute;top:1rem;right:1.2rem;background:rgba(255,255,255,0.15);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:white;font-size:0.9rem;display:grid;place-items:center;}
+.rating-modal-body{padding:1.8rem 2rem;}
+.star-picker{display:flex;justify-content:center;gap:0.5rem;margin:1rem 0 1.5rem;}
+.star-pick{font-size:2.8rem;cursor:pointer;transition:transform 0.15s;filter:grayscale(1);opacity:0.35;line-height:1;}
+.star-pick.active,.star-pick:hover{filter:grayscale(0);opacity:1;transform:scale(1.2);}
+.rating-label{text-align:center;font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;color:var(--teal);min-height:1.5rem;margin-bottom:1rem;}
+.rating-textarea{width:100%;padding:0.8rem 1rem;border:1.5px solid rgba(15,31,61,0.14);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--navy);background:var(--bg);outline:none;resize:vertical;min-height:80px;transition:border-color 0.2s;}
+.rating-textarea:focus{border-color:var(--teal);}
+.btn-submit-rating{width:100%;padding:0.9rem;background:var(--accent);color:var(--navy);border:none;border-radius:12px;font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;cursor:pointer;margin-top:1rem;transition:all 0.2s;}
+.btn-submit-rating:hover{background:#d4911a;transform:translateY(-1px);}
+.btn-rate{background:rgba(232,160,32,0.12);color:#a06e00;border:1.5px solid rgba(232,160,32,0.3);padding:0.35rem 0.8rem;border-radius:100px;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s;}
+.btn-rate:hover{background:var(--accent);color:var(--navy);border-color:var(--accent);}
+.rated-badge{background:#fef9c3;color:#854d0e;border:1.5px solid #fde047;padding:0.35rem 0.8rem;border-radius:100px;font-size:0.72rem;font-weight:600;}
+
+/* TOAST */
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--navy);color:white;padding:1rem 1.5rem;border-radius:14px;font-size:0.88rem;font-weight:500;z-index:9999;transform:translateY(100px);opacity:0;transition:all 0.4s;max-width:320px;box-shadow:0 8px 32px rgba(10,16,32,0.3);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{background:var(--teal);}
+.toast.error{background:var(--coral);}
+.toast.warn{background:var(--accent);color:var(--navy);}
+
+@media(max-width:768px){
+  .steps,.features-grid,.why-grid,.places-grid,.dash-cards,.admin-stats{grid-template-columns:1fr;}
+  .why-card:nth-child(2),.why-card:nth-child(3),.why-card:nth-child(4){margin-top:0;}
+  .steps::before{display:none;}
+  .hero-stats{gap:1.5rem;}
+  .nav-links{display:none;}
+  .star-filter{margin-left:0;}
+  .form-row{grid-template-columns:1fr;}
+  .admin-tabs{overflow-x:auto;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="mainNav">
+  <a class="nav-logo" onclick="goHome()">
+    <div class="logo-icon"><img src="data:image/jpeg;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/xAAC/9oADAMBAAIAAwAAACHzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz3XTzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzbn/wA8888888888888888888888888888885uE8rzBjzzDTTzzjTDzzy888888888888886198rFOPPPLOOLPPPPHIB88888888888888vBn8rD8888888888z88pB888888888888889iEdrC88888888oDiX8pB8tS8888888888889KTrH88888888ovaV8pB88uK088888888888uqjA88888888zGle8pB888NZ88888888888888R8V+88888cnrf8pB888at88888888888888t8Q2N9+888Nfc8hG880n/APPPPPPPPPPPPPNvPPLn3sRWdtsM/oZfY/eb/PPPPPPPPPPPPLa988/PPbnbrfrWEmJPI3PPPPPPPPPPPPPPPLssL2Yn2bllbKvXJDffPPPPPPPPPPPPPPPPHkSc4kYh3jb/AJyH3zzzzzzzzzzzzzzzzzzyv6+iNfoYjBrwpT35nzzzzzzzzzzzzzzzzzxIDDDLDDDDDDDDLLKTzzzzzzzzzzzzzzzzzzzzzzzzzzzz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N1TnIknmGwYG6NaOdmZneLs75C47OyHdshj0EJM0+sRigl1GsmPtpO7aLB4Jr9xo9KFcshj0Ft2Dx6dMEfoPMX6UxYhHMlg8rJplHDuEhDgBImFAIc5s3VJm4ESv1oVT9oeChKEHyNEVLttSxEbNeBchjhUhRkOEiThCWCDGLyf3dUcTG0Bi36w6hmFQqeYft3sUKoCRFDBQeEXI0Ykmyx2OFdhN71XwzuOhWHbM48jjfCiOQIQIYcOAErdfxbBBIBXCYZISacYy/SZy5vJqy3dn38g6c5pNt7LyDp5Sk+/kHUpzn9WOaLbSISaZ3i7O5zP9ExjRbZ5Sk+8ZzgpFLNtl5B9YEnDdTnOaaUovvIpZtsvJOpTlN99MKfu1Gj+ju2Y1QTJKTzk8vn4Q3btPD9Hla1y2SLcPdXD3Vw91cPeXD3lw95cPeXD3lw95cPeXD3lw95cPdXD3Vw91cPdXD3Vw91cPdXD3Vw91cPdXD3Vw91cPdXD3Vw91cPdXD3Vw91cPdXD3UPF3xkhNvZv/ACZf/8QAAv/aAAwDAQACAAMAAAAQ88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888895b8888888888888888888888888888888u328888888888888888888888888888888ryu8scChxRAdx98IwAAAf8APPPPPPPPPPPPPORxvKATgwx98oiw04wwx+/PPPPPPPPPPPPPKU0fIFfPPPPPPPPOsdPFJPPPPPPPPPPPPPPPQ6mQFPPPPPPPPL82tvFSvOadPPPPPPPPPPPOJBaFfPPPPPPPCmfPPFUvPCxtvPPPPPPPPPPDGm1fvPPPPPPOvBlfFR/PPBrvPPPPPPPPPPPPO4gXMvPPPPGe6IfFV/PPBwPPPPPPPPPPPPPPLbqt5cNfPLH7vPAV/POeknPPPPPPPPPPPKMdPPLrSdJytdtPeCjtIrjvvPPPPPPPPPPPPP1P8PNPLbPj/wDnS3revr1zzzzzzzzzzzzzzzz3Y2MGfplVMUT1a/Zs9zzzzzzzzzzzzzzzzxL2RWz7fKKBzJ+79Tzzzzzzzzzzzzzzzzzzk0zWsxqmH1lwyJz9nzzzzzzzzzzzzzzzzzxf/wD/AMd//wD/AP8A/wD/AM99o08888888888888888888sMMMMMMMM88888s8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888//EADgRAAIBAgIGBwcDBQEBAAAAAAECAwAEBRESFSExUVMQFDAyQXGREyI0UmFygSAzQEJQY4ChI0P/2gAIAQIBAT8A/wBQhbS6Okw0F4tsogA78/7Ba2ct02SjJfE00NrhsWmV0n3AnxNT3Etw5Z28hw/sEERnlSMeJqGFIUVUAAArE5jLcsuexNg6MNto7l5FkGeQzrVNpwb1rVNpwb1rVNpwb1rVNn8retaps+DetaptODetaptODetaptODetaptODetaps/lb1rVNpwb1rVNnwb1rVNpwb1rVNn8retaps+DetX2H28Fu7op0hlvPb4MAbpjwQ9F4Ct1OD8x6MF/dm+2pZRDE8hGYUZ1rqHlNWuoeU1a6h5TVrqDlNWuoeU1a6h5TVrqHlNWuoeU1a6h5TVrqHlNWuoeU1a6h5TVrqHlNVpeJdhyqkZcaxP4KX8dvhs3sbtCe62w9GL25WQTAbG39GC/uy/bV98Jcfb2SQTS9yNjT288XfiYDpwXuzeYrFPg5fx242Vh12LiIKx/8AQb6liWZGRhsNXVtJayFW3eBrBP3Zfsq++En+3sbC3W4uArd0bTV5iLW0jQQoBo1Z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" alt="Studify Logo"></div>
+    <span class="logo-text">Studify</span>
+  </a>
+  <ul class="nav-links" id="navLinks">
+    <li id="navLandingLinks" style="display:contents">
+      <li><a onclick="goHome();setTimeout(()=>scrollToSection('how'),100)">How It Works</a></li>
+      <li><a onclick="goHome();setTimeout(()=>scrollToSection('features'),100)">Features</a></li>
+      <li><a onclick="goHome();setTimeout(()=>scrollToSection('places'),100)">Browse Spaces</a></li>
+    </li>
+    <li id="navAuthBtn"><a class="nav-cta" onclick="openAuth('login')">Get Started</a></li>
+    <li id="navDashBtn" style="display:none"><a onclick="showUserDash()">My Reservations</a></li>
+    <li id="navAdminBtn" style="display:none"><a onclick="showAdminDash()">Admin Panel</a></li>
+    <li id="navOwnerBtn" style="display:none"><a onclick="showOwnerDash()">My Space</a></li>
+  </ul>
+  <div class="nav-user" id="navUser" style="display:none">
+    <div class="nav-avatar" id="navAvatar">?</div>
+    <span class="nav-user-name" id="navUserName"></span>
+    <span class="admin-badge-nav" id="navAdminBadge" style="display:none">Admin</span>
+    <button class="btn-logout" onclick="logout()">Log out</button>
+  </div>
+</nav>
+
+<!-- ═══════════════ LANDING PAGE ═══════════════ -->
+<div class="page active" id="landingPage">
+  <section class="hero">
+    <div class="hero-shapes">
+      <div class="shape shape-1"></div><div class="shape shape-2"></div><div class="shape shape-3"></div>
+    </div>
+    <div class="hero-tag">Now Available for Students</div>
+    <h1>Find your<br><span class="highlight">focus</span><br>space.</h1>
+    <p class="hero-sub">Studify helps students discover, check availability, and reserve quiet study spaces — instantly.</p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="openAuth('signup')">Find a Space →</button>
+      <button class="btn-secondary" onclick="scrollToSection('how')">How it works</button>
+    </div>
+    <div class="hero-stats">
+      <div><div class="stat-num">Real‑Time</div><div class="stat-label">Availability Updates</div></div>
+      <div><div class="stat-num">Instant</div><div class="stat-label">Reservations</div></div>
+      <div><div class="stat-num">All‑in‑One</div><div class="stat-label">Study Platform</div></div>
+    </div>
+  </section>
+
+  <section class="section-block" id="how">
+    <div class="section-tag">How It Works</div>
+    <h2>Three steps to your<br>perfect study spot.</h2>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><h3>Search Study Spaces</h3><p>Browse libraries, cafés, and co-working spaces near you all in one place.</p></div>
+      <div class="step"><div class="step-num">2</div><h3>Check Availability</h3><p>See real-time occupancy so you know exactly which spots are open before you go.</p></div>
+      <div class="step"><div class="step-num">3</div><h3>Reserve Your Spot</h3><p>Lock in your space instantly and show up ready to focus — no more guessing.</p></div>
+    </div>
+  </section>
+
+  <section class="section-block" id="features">
+    <div class="section-tag">Key Features</div>
+    <h2>Everything you need<br>to study smarter.</h2>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-emoji">🗺️</div><h3>Study Space Finder</h3><p>Discover study spots near your school. Filter by type, noise level, and amenities.</p></div>
+      <div class="feature-card"><div class="feature-emoji">⚡</div><h3>Real-Time Availability</h3><p>Live occupancy data updated continuously — know how crowded a space is before heading there.</p></div>
+      <div class="feature-card"><div class="feature-emoji">📅</div><h3>Online Reservation System</h3><p>Book a seat, table, or room in seconds. Get a confirmation and show up without the stress.</p></div>
+      <div class="feature-card"><div class="feature-emoji">⭐</div><h3>Ratings & Feedback</h3><p>Rate spaces and read honest reviews from fellow students to find spots that work for you.</p></div>
+    </div>
+  </section>
+
+  <section class="section-block" id="why">
+    <div class="section-tag">Why Studify?</div>
+    <h2>The smarter way to study.</h2>
+    <div class="why-grid">
+      <div class="why-card"><div class="why-icon">⏰</div><h3>Saves Time</h3><p>No more wandering around looking for a free seat. Find your spot instantly.</p></div>
+      <div class="why-card"><div class="why-icon">🧘</div><h3>Less Stress</h3><p>Walk in confident, knowing your space is ready and waiting for you.</p></div>
+      <div class="why-card"><div class="why-icon">📱</div><h3>Easy Access</h3><p>One platform for searching, booking, and reviewing all your study spots.</p></div>
+      <div class="why-card"><div class="why-icon">🚀</div><h3>Better Productivity</h3><p>Spend your time studying, not searching. Focus more and achieve more.</p></div>
+    </div>
+  </section>
+
+  <section class="section-block" id="places">
+    <div class="section-tag">Browse Spaces</div>
+    <h2>Find your perfect<br>study spot nearby.</h2>
+    <div class="places-controls">
+      <div class="filter-group">
+        <button class="filter-btn active" data-cat="all">All Spaces</button>
+        <button class="filter-btn cat-library" data-cat="study">📚 Study Places</button>
+        <button class="filter-btn cat-computer" data-cat="computer">💻 Computer Shops</button>
+        <button class="filter-btn cat-cafe" data-cat="cafe">☕ Cafés</button>
+      </div>
+      <div class="star-filter">
+        <label>⭐ Min Rating:</label>
+        <select id="starFilter">
+          <option value="0">All Stars</option>
+          <option value="3">3★ &amp; up</option>
+          <option value="4">4★ &amp; up</option>
+          <option value="5">5★ only</option>
+        </select>
+      </div>
+    </div>
+    <div class="location-search-wrap">
+      <input class="location-search" id="locationSearch" placeholder="🔍  Search by location name (e.g. Angeles, Dau, San Fernando…)" oninput="applyAllFilters()">
+      <button class="btn-gps" id="gpsBtn" onclick="findNearest()">📍 Nearest to Me</button>
+    </div>
+    <div class="places-count" id="placesCount">Showing 12 spaces</div>
+    <div class="places-grid" id="placesGrid"></div>
+  </section>
+
+  <section class="section-block">
+    <div class="cta-box">
+      <div class="section-tag" style="color:var(--accent);display:flex;justify-content:center;">Get Started</div>
+      <h2>Stop searching.<br>Start studying.</h2>
+      <p>"Studify is a solution to help students focus, save time, and succeed."</p>
+      <div class="cta-actions">
+        <button class="btn-accent" onclick="openAuth('signup')">Find a Study Space →</button>
+        <button class="btn-secondary" style="border-color:rgba(255,255,255,0.3);color:rgba(255,255,255,0.8);" onclick="scrollToSection('how')">Learn More</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <strong>STUDIFY</strong> — Your Study Space, Reserved.<br>
+    <div class="members">
+      <span class="member-tag">Mark David Valle</span><span class="member-tag">Elijah James Zamora</span>
+      <span class="member-tag">Edrian Mark Reyes</span><span class="member-tag">John Rasheed Gonzales</span>
+      <span class="member-tag">Jeremias Sarmiento</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ═══════════════ USER DASHBOARD ═══════════════ -->
+<div class="page" id="userDashPage">
+  <div class="dashboard">
+    <div class="dash-header">
+      <div>
+        <div class="dash-greeting">Good day, <span id="dashName">Student</span>! 👋</div>
+        <p style="opacity:0.5;font-size:0.88rem;margin-top:0.3rem;">Here's your study space overview.</p>
+      </div>
+      <button class="btn-primary" onclick="goHome();setTimeout(()=>scrollToSection('places'),300)">+ Browse Spaces</button>
+    </div>
+    <div class="dash-cards">
+      <div class="dash-card"><div class="dash-card-label">Total Reservations</div><div class="dash-card-val" id="totalRes">0</div><div class="dash-card-sub">All time bookings</div></div>
+      <div class="dash-card"><div class="dash-card-label">Upcoming</div><div class="dash-card-val" id="upcomingRes">0</div><div class="dash-card-sub">Confirmed spots</div></div>
+      <div class="dash-card"><div class="dash-card-label">Favourite Type</div><div class="dash-card-val" id="favType" style="font-size:1.2rem;">—</div><div class="dash-card-sub">Most visited category</div></div>
+    </div>
+    <div class="dash-section-title">My Reservations</div>
+    <div class="reservation-list" id="reservationList">
+      <div class="empty-state"><div style="font-size:3rem">📭</div><p>No reservations yet. Browse spaces and book your first spot!</p></div>
+    </div>
+  </div>
+  <footer><strong>STUDIFY</strong> — Your Study Space, Reserved.</footer>
+</div>
+
+<!-- ═══════════════ ADMIN DASHBOARD ═══════════════ -->
+<div class="page" id="adminDashPage">
+  <div class="admin-dash">
+    <div class="admin-header">
+      <div>
+        <span class="admin-title">Admin Panel</span>
+        <span class="admin-badge">🛡️ Administrator</span>
+        <p style="opacity:0.5;font-size:0.85rem;margin-top:0.4rem;">Manage spaces, users, and all reservations.</p>
+      </div>
+      <button class="btn-primary" onclick="openAddPlaceModal()">+ Add New Space</button>
+    </div>
+
+    <div class="admin-stats">
+      <div class="admin-stat"><div class="admin-stat-val" id="aStatPlaces">12</div><div class="admin-stat-label">Total Spaces</div></div>
+      <div class="admin-stat"><div class="admin-stat-val" id="aStatUsers">0</div><div class="admin-stat-label">Registered Users</div></div>
+      <div class="admin-stat"><div class="admin-stat-val" id="aStatRes">0</div><div class="admin-stat-label">Total Reservations</div></div>
+      <div class="admin-stat"><div class="admin-stat-val" id="aStatPending">0</div><div class="admin-stat-label">Pending</div></div>
+    </div>
+
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-panel="resPanel">📋 All Reservations</button>
+      <button class="admin-tab" data-panel="spacesPanel">🏫 Study Spaces</button>
+      <button class="admin-tab" data-panel="seatsPanel">🪑 Seat Availability</button>
+      <button class="admin-tab" data-panel="usersPanel">👥 Users</button>
+    </div>
+
+    <!-- RESERVATIONS PANEL -->
+    <div class="admin-panel active" id="resPanel">
+      <div class="admin-table-wrap">
+        <div class="admin-table-header">
+          <span class="admin-table-title">All Reservations</span>
+          <input class="admin-search" id="resSearch" placeholder="Search reservations…" oninput="renderAdminRes()">
+        </div>
+        <div style="overflow-x:auto">
+          <table id="adminResTable">
+            <thead><tr><th>Space</th><th>User</th><th>Date</th><th>Time</th><th>Duration</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="adminResBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPACES PANEL -->
+    <div class="admin-panel" id="spacesPanel">
+      <div class="admin-table-wrap">
+        <div class="admin-table-header">
+          <span class="admin-table-title">Study Spaces</span>
+          <input class="admin-search" id="spaceSearch" placeholder="Search spaces…" oninput="renderAdminSpaces()">
+        </div>
+        <div style="overflow-x:auto">
+          <table id="adminSpacesTable">
+            <thead><tr><th>Name</th><th>Category</th><th>Location</th><th>Rating</th><th>Seats</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="adminSpacesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SEATS PANEL -->
+    <div class="admin-panel" id="seatsPanel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;">Live Seat Availability</div>
+          <div style="font-size:0.82rem;opacity:0.5;margin-top:0.2rem;">Adjust seats in real time. Changes save to database immediately.</div>
+        </div>
+        <button class="btn-primary" style="font-size:0.82rem;padding:0.6rem 1.2rem;" onclick="renderAdminDash()">🔄 Refresh</button>
+      </div>
+      <div class="seats-overview" id="seatsOverview"></div>
+      <div class="admin-table-wrap">
+        <div class="admin-table-header">
+          <span class="admin-table-title">All Spaces — Seat Control</span>
+          <input class="admin-search" id="seatSearch" placeholder="Search spaces…" oninput="renderSeatsPanel()">
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Space</th><th>Category</th><th>Status</th><th>Available Seats</th><th>Total Seats</th><th>Adjust</th></tr></thead>
+            <tbody id="seatsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- USERS PANEL -->
+    <div class="admin-panel" id="usersPanel">
+      <div class="admin-table-wrap">
+        <div class="admin-table-header">
+          <span class="admin-table-title">Registered Users</span>
+          <input class="admin-search" id="userSearch" placeholder="Search users…" oninput="renderAdminUsers()">
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Reservations</th></tr></thead>
+            <tbody id="adminUsersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <footer><strong>STUDIFY</strong> — Admin Panel.</footer>
+</div>
+
+<!-- ═══════════════ OWNER DASHBOARD ═══════════════ -->
+<div class="page" id="ownerDashPage">
+  <div class="owner-dash">
+    <div class="owner-header">
+      <div>
+        <span class="owner-title">My Space</span>
+        <span class="owner-badge">🏢 Space Owner</span>
+        <p style="opacity:0.5;font-size:0.85rem;margin-top:0.4rem;">Manage check-ins and seat availability for your space.</p>
+      </div>
+    </div>
+
+    <div class="owner-stats">
+      <div class="owner-stat"><div class="owner-stat-val" id="ownerAvail">—</div><div class="owner-stat-label">Available Seats</div></div>
+      <div class="owner-stat"><div class="owner-stat-val" id="ownerOccupied">—</div><div class="owner-stat-label">Occupied</div></div>
+      <div class="owner-stat"><div class="owner-stat-val" id="ownerTotal">—</div><div class="owner-stat-label">Total Seats</div></div>
+      <div class="owner-stat"><div class="owner-stat-val" id="ownerToday">0</div><div class="owner-stat-label">Check-ins Today</div></div>
+    </div>
+
+    <div class="owner-space-card" id="ownerSpaceCard">
+      <div class="owner-space-name" id="ownerSpaceName">Loading...</div>
+      <div class="owner-space-loc" id="ownerSpaceLoc"></div>
+
+      <div class="owner-seat-control">
+        <div class="owner-seat-big">
+          <div class="owner-seat-num" id="ownerSeatNum">—</div>
+          <div class="owner-seat-label">Seats Available</div>
+        </div>
+        <div class="owner-seat-bar-wrap">
+          <div class="owner-seat-bar-bg">
+            <div class="owner-seat-bar-fill" id="ownerSeatBar" style="width:100%;background:#22c55e;"></div>
+          </div>
+          <div class="owner-seat-bar-labels">
+            <span id="ownerBarLeft">0 occupied</span>
+            <span id="ownerBarRight">0 total</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="owner-btns">
+        <button class="btn-checkin" onclick="ownerCheckIn(1)">✅ Check In <span style="background:rgba(255,255,255,0.3);border-radius:100px;padding:0.1rem 0.5rem;font-size:0.82rem;">−1 seat</span></button>
+        <button class="btn-checkout" onclick="ownerCheckOut(1)">🚪 Check Out <span style="background:rgba(255,255,255,0.3);border-radius:100px;padding:0.1rem 0.5rem;font-size:0.82rem;">+1 seat</span></button>
+        <button class="btn-bulk" onclick="openBulkModal('in')">👥 Bulk Check In</button>
+        <button class="btn-bulk" onclick="openBulkModal('out')">👥 Bulk Check Out</button>
+      </div>
+
+      <div style="display:flex;gap:0.6rem;margin-bottom:2rem;flex-wrap:wrap;">
+        <button class="btn-tbl btn-tbl-approve" onclick="ownerSetStatus('open')" style="padding:0.5rem 1.2rem;font-size:0.82rem;">🟢 Mark Open</button>
+        <button class="btn-tbl btn-tbl-edit" onclick="ownerSetStatus('busy')" style="padding:0.5rem 1.2rem;font-size:0.82rem;">🟡 Mark Busy</button>
+        <button class="btn-tbl btn-tbl-cancel" onclick="ownerSetStatus('full')" style="padding:0.5rem 1.2rem;font-size:0.82rem;">🔴 Mark Full</button>
+      </div>
+    </div>
+
+    <div class="owner-log">
+      <div class="owner-log-header">
+        <span>Activity Log</span>
+        <span style="font-size:0.78rem;opacity:0.4;font-family:'DM Sans',sans-serif;" id="ownerLogCount">0 entries today</span>
+      </div>
+      <div id="ownerLogList">
+        <div style="text-align:center;padding:3rem;opacity:0.3;font-size:0.9rem;">No activity yet. Check-ins will appear here.</div>
+      </div>
+    </div>
+  </div>
+  <footer><strong>STUDIFY</strong> — Space Owner Panel.</footer>
+</div>
+
+<!-- BULK CHECK MODAL -->
+<div class="bulk-modal-overlay" id="bulkOverlay">
+  <div class="bulk-modal">
+    <h3 id="bulkTitle">Bulk Check In</h3>
+    <p style="font-size:0.85rem;opacity:0.5;margin-bottom:1.2rem;" id="bulkSub">How many persons are checking in?</p>
+    <input type="number" class="bulk-input" id="bulkNum" min="1" max="50" value="1">
+    <div style="display:flex;gap:0.8rem;">
+      <button class="btn-auth" style="background:var(--teal);" onclick="confirmBulk()">Confirm</button>
+      <button class="btn-modal-cancel" onclick="closeBulkModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- RATING MODAL -->
+<div class="rating-overlay" id="ratingOverlay">
+  <div class="rating-modal">
+    <div class="rating-modal-head">
+      <button class="rating-modal-close" onclick="closeRatingModal()">✕</button>
+      <h3 id="ratingPlaceName">Rate this Space</h3>
+      <p id="ratingPlaceLoc"></p>
+    </div>
+    <div class="rating-modal-body">
+      <div class="rating-label" id="ratingLabel">Tap a star to rate</div>
+      <div class="star-picker" id="starPicker">
+        <span class="star-pick" data-val="1" onclick="pickStar(1)">★</span>
+        <span class="star-pick" data-val="2" onclick="pickStar(2)">★</span>
+        <span class="star-pick" data-val="3" onclick="pickStar(3)">★</span>
+        <span class="star-pick" data-val="4" onclick="pickStar(4)">★</span>
+        <span class="star-pick" data-val="5" onclick="pickStar(5)">★</span>
+      </div>
+      <div class="res-form-group">
+        <label>Your Review (optional)</label>
+        <textarea class="rating-textarea" id="ratingComment" placeholder="Share your experience at this space..."></textarea>
+      </div>
+      <button class="btn-submit-rating" onclick="submitRating()">⭐ Submit Rating</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-modal">
+    <button class="auth-modal-close" id="authClose">✕</button>
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Log In</button>
+      <button class="auth-tab" data-tab="signup">Sign Up</button>
+    </div>
+    <div class="auth-body">
+      <div class="auth-logo">
+        <div class="auth-logo-icon"><img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAUFBQUFBQUGBgUICAcICAsKCQkKCxEMDQwNDBEaEBMQEBMQGhcbFhUWGxcpIBwcICkvJyUnLzkzMzlHREddXX0BBQUFBQUFBQYGBQgIBwgICwoJCQoLEQwNDA0MERoQExAQExAaFxsWFRYbFykgHBwgKS8nJScvOTMzOUdER11dff/CABEIAiUCJQMBIgACEQEDEQH/xAAyAAEAAwEBAQEAAAAAAAAAAAAABAUGAwIBBwEBAAMBAQAAAAAAAAAAAAAAAAECAwQF/9oADAMBAAIQAxAAAALZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHxH1D42pZI8itwSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeaS2c2s5Wu/L5tPrn6wi4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAr5pAjHZ58jQV1jzdoZ7IE/NaYWiobc9uqBbqgWypFuqBbqgW6oFv8qRbqgW6oFuqBb/ACpFuqBbqgW6oFvJz9nTS1GHWAAAAAAAAAAAAAob7Pa8/AdXFeTK+w4vRCujNaXNbcvgk9HLGX7HooGgIz7QDPtAM+0Pwz7QfU55ofhn1/8AUZ9oBn2gGfaAZ9oBn2hGeXlHpms6yzibUcnoAAAAAAAAAAAAAKO8gXxph2cEy8zGg5uvuMepmtLmtuXxMhzNue8HH6QAAAAAAAB4iTWcgykdBFwOeb0mb6ONZ1lnfO1HJ6AAAAAAAAAAAAAD59IzvHQUPVw+ZMZpnqFLdcfezWlzWmPiZDmbYXg4/RAAAAAAARZVDfKP3kW+mFBw01SmVMzuiz1Cm3PN6TN9HGs6yzvnajk9By6kRZVZXzGjefUWAAAAAAAAAAAQpqa5j5eUvVw+Z0Fammznbhnr5mQ5l87wcfpAAAAAAAKG+i3yrrrNe9efR+aqfj09OhW4J55vSZvo41nWWd87UcnoAKO8Iw+yx/DXPeuXXLUAAAAAAAAAABw7kZ3jpqvo5K19+bcyZD7RfROHfi9EEgAAAAACIrIhTOkxRRdPV7c/qyzWlpoGe/PN6TN9HGs6yzvnajk9AACoxv6D+e7Y220/NdtE2gy1AAAAAAAAAAAAjVN+vll15V9HJwn161dH1zE3DpunDvj0AkAAABm9JE0xh2+Z73xv62HHT60lfYU0DPfnm9Jm+jjWdZZ3ztRyegABG/PtZk9sV/QW167Qc3QAAAAAAAAAAAAACIdder55j5o4G3PVyPPG+VxNzX2munUUzLexcuueoJAA5xJ6aV8nuAi4HLOaTN9HGs6y0tS0HL3gOfvGWrCjHRgv6DcUtZDDcAAAAAAAAAAAAgckWjz6SAA4dyKuHoGmOY+aWLplSdpka+feVUeInR9cv7pppVB2ppcqzpW89F6Rbs5/Ye3gn1w6eZr66RhJefkW9x6fNXpNrTfIW501/j3zbhFgAAAAAAAAAAAEaSRmfOoj2rFsc3UzG7Y2zib9An1sCQAQ5dRD42S1KnndJrQ/L9aueaEZ71fij6XHmLV3bxWRN/xyFfZpKKO0oPVo8+7nSZ2ptF9Y7BEgAAAAAAAAAAAAACrRL71VuVtRqflowPD9GjWpjJltX2jpKo4Rsu2CH6F6/O/p+i+/zdE/o/j88+H6HzwHyY3UbHJaeLRJifD8LVCRdWVLZSZtJNLZy7kM7hFgAAAAAAAAAAAAAAAGCv8AJ65bqwwPo3NblB+gQcjyh+gwshzT+gZGDEtWwt859mOGmzUuYiWNZKl98c/sx2id+BY18mLE39BMhmrgVvysxhpTb2eS1vN0BWwAAAAAAAAAAAAAAAADn0y81pPHP704ajxn/lLeNPl+1o7XOb6wnSaT0WlS+S0uZ68S9gxfBLn0308aXM9zxzLRcRIqszO9X6PWiy/Y9xvXmY7foX5vtM72wx2AAAAAAAAAAAAAAAAAi4HU1OuVWtGlKpaiqWoqlqKpaiqWoqlqKpaiqWoqlqKpaiqWoqlqKpaiqWoqrrl7idk+fefcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/xAAC/9oADAMBAAIAAwAAACHzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz3XTzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzbn/wA8888888888888888888888888888885uE8rzBjzzDTTzzjTDzzy888888888888886198rFOPPPLOOLPPPPHIB88888888888888vBn8rD8888888888z88pB888888888888889iEdrC88888888oDiX8pB8tS8888888888889KTrH88888888ovaV8pB88uK088888888888uqjA88888888zGle8pB888NZ88888888888888R8V+88888cnrf8pB888at88888888888888t8Q2N9+888Nfc8hG880n/APPPPPPPPPPPPPNvPPLn3sRWdtsM/oZfY/eb/PPPPPPPPPPPPLa988/PPbnbrfrWEmJPI3PPPPPPPPPPPPPPPLssL2Yn2bllbKvXJDffPPPPPPPPPPPPPPPPHkSc4kYh3jb/AJyH3zzzzzzzzzzzzzzzzzzyv6+iNfoYjBrwpT35nzzzzzzzzzzzzzzzzzxIDDDLDDDDDDDDLLKTzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz/8QALhAAAQQBAwMDBAICAwEAAAAAAwABAgQFEBEVEhMUIDFAITAzUDI0ImAjQaBD/9oACAEBAAEHAv8Ax1brf/QXkzIl0UExrJ1AOyb9+7o96MPpMxCuq9L2kzM3+gTnGEXexakV9lTrf/T/AEB32Vmw5paVhd0sW9D5GLO7clFcjFcjBcjBcjFcjBcjBcjBcjFcjFcjBcjBcjFcjFcjFcjBcjFcjFcjFcjFcjFcjBcjFcjBcjBcjBclFclFclFclFclFVrLHeXzb5emLQ0x8P8ACctXU/5z/QY73L825LqPLWh+BvTP+c/0GO9y/Ns/nLrj5bjk3on/ADnpUhGZmbxQLxQLxALxALxALxALxALxALwwLxALxALwwLwwLxALxQLxQLxALxALxALxALxALxALxALxALxALwwItYMRzfTHe5fm3Y7Hd9KROg23on/OelH+w3yz/iJrjvcvzb4uofXo30feuVijZ9Z/znpR/sN8MhYDZPfCya+F1Awyek/4ia473L812Z92OJwkeOlc3Zmmk0mZ9J/znpR/sN8K1Y7MVKUpuoVDTU6hoJneLqrY7sdtT/iJrjvcvoN3Y/5AuCP9PkWAMaG0ovF3bSpZ7b9DaT/nPSj/AGG+Fcl1HmqAmlKU9L4mjtMEugsHbU/4ia473L6b9Dvt3KmXmKfZjOM2aXx7Vbutu7Oz7aVbbj/xZ2dt5/znpR/sN8K3HpPNUzsKTszs+jxaS7Q/Qf8AETXHe5fVl8f3oOajkS05bAOOwNp/Hs1WK28oyg+2gLMw/ST7yk6of2G+FZr99lOEoPtAxBqGQkh2RF9J/wARNcd7l9eWqeNZ3p3CUyNIB4HHEnxzAgZkYEwv6aP52+HIcJttPHjdEpGgvqyp2Xl/x6n/ABE1x3uX15oHcpvNYq94puj5EotJtj0Xb6v9NQF7JGkI8C/Ad9l5oEMsSx6tL4m6WIJ+kkHbU/4ia473L67jdVU7aYmz5FWPyjVhmRapBas7s+4r0o/QZhk+86KOQpO1AzR3HpfK3SwxR6iwbU/4ia473L670uipYfTAk2OUfytkakMm6JWKLVndnQ7xIodsRPu2gd6Kk0oPtC2eClcPJfWTqpW7f+ep/wARNcd7l9edsdAIh0wv9+PzdkWmIiJTKNe2o7JRoeQiokhP7cxQIpY8TpseNDAIXpN+IuuO9y+opYihKduzK0eZNMAPc5ifPmAZETHqYCw1Z3ZQumgoZCDqJhz+Af8AETXGt9Semc4wi8snkXty6NcXW8arH5LuzfZ2U6oZomOdTqmh6I2DQUcgRlG+J1CwKS3b7cm6mdvEAyYI2W23os2g1odV7JFuPtriKHemxvkvFpNsQVkL9Q8oHq6IzjNt/syFCSnRDJSx8lKoeKeE21Yk2UbZ4psgRk2RZNkBJrgHTWQrvDXdgu5Bd2C7wl5IWXmhTHeai8lMkBtvbzkI7xKYh5dWuPxk7TtOEIwi0fl2KgLMdiY25Ufrhm7An6AZamVRnGTb/a6WdSAKSeiB0+Ognxzp6Bl4VheIdeMdeMdeKdeJYTUjpqBE2OZRogZREOKNbrgVjO/9HsnsS31hCZJdNHC7bEizM23zj1QWG2sYL/uQ71F0LNWxoeeE6Fk6ZUxYS+JKcIouTpiRc+yNlLhk7u/ojGUn2q4U5dnr0wVW/RAsRsOVPFn+h8XUOjYEjItG2FNMg3UMhcGoZy3FRz6hn6yjmqMk2SpOmuVnXkBXeEu8Nd4S74l5Vdk9+oyllqMFLOVGUs/FTz1l1PJ3SKRCT9Pug4+2dAwMfo4aoAN+jytzxa7rCNtRZ9N232RatYv0JhKskXAlip4q7BECUXp3ddUlu63f7YcJZJs4sCCKDSqgb9LJ2Zt79p7diU8W3TQraEJEUJTxZZWWsHQi964Zkcu9muBZ0/XYiLE1ms2mWUqUq9Wc1wI+hnkzNKTU8WW4JyXKkqZGHWrztFYdumWnKMUfGnrgYze7ImEeAJkVPG0T1xFzFMdZwz0xNjv04fp81c7Y+woX7cItHkbqJdtFi8BW7IY9HJXUO3ZF1Lkbq8uz3HLyN1TnIknmGwYG6NaOdmZneLs75C47OyHdshj0EJM0+sRigl1GsmPtpO7aLB4Jr9xo9KFcshj0Ft2Dx6dMEfoPMX6UxYhHMlg8rJplHDuEhDgBImFAIc5s3VJm4ESv1oVT9oeChKEHyNEVLttSxEbNeBchjhUhRkOEiThCWCDGLyf3dUcTG0Bi36w6hmFQqeYft3sUKoCRFDBQeEXI0Ykmyx2OFdhN71XwzuOhWHbM48jjfCiOQIQIYcOAErdfxbBBIBXCYZISacYy/SZy5vJqy3dn38g6c5pNt7LyDp5Sk+/kHUpzn9WOaLbSISaZ3i7O5zP9ExjRbZ5Sk+8ZzgpFLNtl5B9YEnDdTnOaaUovvIpZtsvJOpTlN99MKfu1Gj+ju2Y1QTJKTzk8vn4Q3btPD9Hla1y2SLcPdXD3Vw91cPeXD3lw95cPeXD3lw95cPeXD3lw95cPdXD3Vw91cPdXD3Vw91cPdXD3Vw91cPdXD3Vw91cPdXD3Vw91cPdXD3Vw91cPdXD3UPF3xkhNvZv/ACZf/8QAAv/aAAwDAQACAAMAAAAQ88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888895b8888888888888888888888888888888u328888888888888888888888888888888ryu8scChxRAdx98IwAAAf8APPPPPPPPPPPPPORxvKATgwx98oiw04wwx+/PPPPPPPPPPPPPKU0fIFfPPPPPPPPOsdPFJPPPPPPPPPPPPPPPQ6mQFPPPPPPPPL82tvFSvOadPPPPPPPPPPPOJBaFfPPPPPPPCmfPPFUvPCxtvPPPPPPPPPPDGm1fvPPPPPPOvBlfFR/PPBrvPPPPPPPPPPPPO4gXMvPPPPGe6IfFV/PPBwPPPPPPPPPPPPPPLbqt5cNfPLH7vPAV/POeknPPPPPPPPPPPKMdPPLrSdJytdtPeCjtIrjvvPPPPPPPPPPPPP1P8PNPLbPj/wDnS3revr1zzzzzzzzzzzzzzzz3Y2MGfplVMUT1a/Zs9zzzzzzzzzzzzzzzzxL2RWz7fKKBzJ+79Tzzzzzzzzzzzzzzzzzzk0zWsxqmH1lwyJz9nzzzzzzzzzzzzzzzzzxf/wD/AMd//wD/AP8A/wD/AM99o08888888888888888888sMMMMMMMM88888s8888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888//EADgRAAIBAgIGBwcDBQEBAAAAAAECAwAEBRESFSExUVMQFDAyQXGREyI0UmFygSAzQEJQY4ChI0P/2gAIAQIBAT8A/wBQhbS6Okw0F4tsogA78/7Ba2ct02SjJfE00NrhsWmV0n3AnxNT3Etw5Z28hw/sEERnlSMeJqGFIUVUAAArE5jLcsuexNg6MNto7l5FkGeQzrVNpwb1rVNpwb1rVNpwb1rVNn8retaps+DetaptODetaptODetaptODetaptODetaps/lb1rVNpwb1rVNnwb1rVNpwb1rVNn8retaps+DetX2H28Fu7op0hlvPb4MAbpjwQ9F4Ct1OD8x6MF/dm+2pZRDE8hGYUZ1rqHlNWuoeU1a6h5TVrqDlNWuoeU1a6h5TVrqHlNWuoeU1a6h5TVrqHlNWuoeU1a6h5TVrqHlNVpeJdhyqkZcaxP4KX8dvhs3sbtCe62w9GL25WQTAbG39GC/uy/bV98Jcfb2SQTS9yNjT288XfiYDpwXuzeYrFPg5fx242Vh12LiIKx/8AQb6liWZGRhsNXVtJayFW3eBrBP3Zfsq++En+3sbC3W4uArd0bTV5iLW0jQQoBo1Z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" alt="Studify Logo"></div>
+        <span class="auth-logo-text">Studify</span>
+      </div>
+      <div class="auth-panels-wrap" id="authPanelsWrap">
+        <div class="auth-panel active" id="panel-login">
+          <div class="auth-title">Welcome back 👋</div>
+          <div class="auth-sub">Log in to find and reserve your study space.</div>
+          <div class="form-group"><label>Email Address</label><input type="email" id="login-email" placeholder="you@example.com"><div class="form-error" id="login-email-err"></div></div>
+          <div class="form-group"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••"><div class="form-error" id="login-pass-err"></div></div>
+          <div class="form-error" id="login-general-err" style="margin-bottom:0.5rem;"></div>
+          <button class="btn-auth" id="loginBtn">Log In →</button>
+          <div class="auth-divider">or</div>
+          <button class="btn-google" onclick="googleSignIn()">
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Continue with Google
+          </button>
+          <div class="auth-switch">Don't have an account? <a id="goSignup">Sign up free</a></div>
+        </div>
+        <div class="auth-panel" id="panel-signup">
+          <div class="auth-title">Create account ✨</div>
+          <div class="auth-sub">Join Studify and never waste time searching for a study spot again.</div>
+          <div class="form-row">
+            <div class="form-group"><label>First Name</label><input type="text" id="signup-first" placeholder="Juan"></div>
+            <div class="form-group"><label>Last Name</label><input type="text" id="signup-last" placeholder="dela Cruz"></div>
+          </div>
+          <div class="form-group"><label>Email Address</label><input type="email" id="signup-email" placeholder="you@example.com"><div class="form-error" id="signup-email-err"></div></div>
+          <div class="form-group"><label>Password</label><input type="password" id="signup-pass" placeholder="At least 6 characters"><div class="form-error" id="signup-pass-err"></div></div>
+          <div class="form-check"><input type="checkbox" id="terms"><label for="terms">I agree to Studify's Terms of Service and Privacy Policy</label></div>
+          <div class="form-error" id="signup-general-err" style="margin-bottom:0.5rem;"></div>
+          <button class="btn-auth" id="signupBtn">Create My Account →</button>
+          <div class="auth-divider">or</div>
+          <button class="btn-google" onclick="googleSignIn()">
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Continue with Google
+          </button>
+          <div class="auth-switch">Already have an account? <a id="goLogin">Log in</a></div>
+        </div>
+      </div>
+      <div class="auth-success" id="authSuccess">
+        <div class="success-icon">🎉</div>
+        <h3 id="successTitle">You're in!</h3>
+        <p id="successMsg">Welcome to Studify.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESERVATION MODAL -->
+<div class="res-overlay" id="resOverlay">
+  <div class="res-modal">
+    <div class="res-modal-header">
+      <button class="res-modal-close" onclick="closeResModal()">✕</button>
+      <h3 id="resModalTitle">Reserve a Spot</h3>
+      <p id="resModalSub">Fill in details to confirm your booking.</p>
+    </div>
+    <div class="res-modal-body">
+      <div class="res-form-group"><label>Date</label><input type="date" id="resDate"></div>
+      <div class="res-form-group"><label>Start Time</label>
+        <select id="resStart">
+          <option>7:00 AM</option><option>8:00 AM</option><option>9:00 AM</option><option>10:00 AM</option>
+          <option>11:00 AM</option><option>12:00 PM</option><option>1:00 PM</option><option>2:00 PM</option>
+          <option>3:00 PM</option><option>4:00 PM</option><option>5:00 PM</option><option>6:00 PM</option>
+        </select>
+      </div>
+      <div class="res-form-group"><label>Duration</label>
+        <select id="resDuration">
+          <option value="1">1 hour</option><option value="2">2 hours</option><option value="3">3 hours</option>
+          <option value="4">4 hours</option><option value="5">5 hours</option>
+        </select>
+      </div>
+      <div class="res-form-group"><label>Number of Persons</label>
+        <select id="resPersons">
+          <option value="1">1 person</option><option value="2">2 persons</option><option value="3">3 persons</option>
+          <option value="4">4 persons</option><option value="5">5 persons</option><option value="6">6 persons</option>
+          <option value="7">7 persons</option><option value="8">8 persons</option><option value="9">9 persons</option>
+          <option value="10">10 persons</option>
+        </select>
+      </div>
+      <div id="priceLive" class="price-live" style="display:none">
+        <div class="price-live-label">Total Estimated Price</div>
+        <div class="price-live-amount" id="priceAmount">Free</div>
+        <div class="price-live-sub" id="priceSub"></div>
+      </div>
+      <div class="res-form-group"><label>Notes (optional)</label><input type="text" id="resNotes" placeholder="e.g. Need outlet near window"></div>
+      <div class="res-summary" id="resSummary"></div>
+      <button class="btn-confirm-res" onclick="confirmReservation()">✓ Confirm Reservation</button>
+    </div>
+  </div>
+</div>
+
+<!-- PLACE EDIT/ADD MODAL -->
+<div class="modal-overlay" id="placeModalOverlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <button class="modal-close" onclick="closePlaceModal()">✕</button>
+      <h3 id="placeModalTitle">Add New Space</h3>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editPlaceId">
+      <div class="form-group"><label>Place Name</label><input type="text" id="editName" placeholder="e.g. University Library"></div>
+      <div class="form-group"><label>Category</label>
+        <select id="editCat">
+          <option value="study">📚 Study Place</option>
+          <option value="computer">💻 Computer Shop</option>
+          <option value="cafe">☕ Café</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Location</label><input type="text" id="editLoc" placeholder="e.g. Main Campus, Bldg A"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Available Seats</label><input type="number" id="editSeats" min="0" placeholder="20"></div>
+        <div class="form-group"><label>Rating (1-5)</label><input type="number" id="editRating" min="1" max="5" placeholder="4"></div>
+      </div>
+      <div class="form-group"><label>Hours / Price</label><input type="text" id="editHours" placeholder="e.g. Open until 9:00 PM"></div>
+      <div class="form-group"><label>Availability</label>
+        <select id="editAvail">
+          <option value="open">🟢 Open</option>
+          <option value="busy">🟡 Busy</option>
+          <option value="full">🔴 Full</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Tags (comma-separated)</label><input type="text" id="editTags" placeholder="Free WiFi, Quiet Zone, Air-Con"></div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="closePlaceModal()">Cancel</button>
+        <button class="btn-save" onclick="savePlaceModal()">Save Space</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════
+let PLACES = [
+  {id:1,cat:'study',name:'University Central Library',loc:'Main Campus, Building A',rating:5,reviews:128,avail:'open',seats:14,tags:['Quiet Zone','Free WiFi','Air-Conditioned','Power Outlets'],hours:'Open until 9:00 PM',emoji:'📖',bg:'linear-gradient(135deg,#c8e6e6,#a8d5d5)',price:'Free'},
+  {id:2,cat:'study',name:'Greenfield Study Hub',loc:'Greenfield Ave., 2nd Floor',rating:4,reviews:87,avail:'busy',seats:3,tags:['Group Rooms','Whiteboards','Printing'],hours:'Open until 8:00 PM',emoji:'🏫',bg:'linear-gradient(135deg,#d4e8c8,#b8d8a0)',price:'Free'},
+  {id:3,cat:'study',name:"Scholar's Den Learning Center",loc:'Rizal St., Near City Hall',rating:4,reviews:54,avail:'open',seats:22,tags:['Private Booths','Free WiFi','Locker Storage'],hours:'Open 24 Hours',emoji:'🎓',bg:'linear-gradient(135deg,#e8e0f8,#d0c0f0)',price:'Free'},
+  {id:4,cat:'study',name:'Barangay Public Reading Room',loc:'Barangay Hall, Santos St.',rating:3,reviews:21,avail:'open',seats:8,tags:['Free Entry','Quiet'],hours:'Open until 5:00 PM',emoji:'📚',bg:'linear-gradient(135deg,#fde8c8,#f8d0a0)',price:'Free'},
+  {id:5,cat:'computer',name:'TechZone Internet Café',loc:'MacArthur Highway, Dau',rating:5,reviews:203,avail:'open',seats:10,tags:['Fast Internet','Gaming PCs','Headsets','Printing'],hours:'₱25/hour',emoji:'💻',bg:'linear-gradient(135deg,#c8d8f8,#a8c0f0)',price:'₱25/hr'},
+  {id:6,cat:'computer',name:'CyberPoint Study & Print',loc:'Friendship, Angeles City',rating:4,reviews:66,avail:'busy',seats:2,tags:['Printing','Scanning','MS Office','Air-Con'],hours:'₱20/hour',emoji:'🖥️',bg:'linear-gradient(135deg,#d8f0f8,#b0e0f0)',price:'₱20/hr'},
+  {id:7,cat:'computer',name:'PixelHub Internet Lounge',loc:'Balibago, Angeles City',rating:4,reviews:91,avail:'open',seats:18,tags:['500 Mbps WiFi','Webcam','Quiet Area'],hours:'₱30/hour',emoji:'🖱️',bg:'linear-gradient(135deg,#e0e8f8,#c8d8f0)',price:'₱30/hr'},
+  {id:8,cat:'computer',name:'NetKing Budget Shop',loc:'Sto. Rosario, Pampanga',rating:3,reviews:38,avail:'full',seats:0,tags:['Budget-Friendly','Printing'],hours:'₱15/hour',emoji:'⌨️',bg:'linear-gradient(135deg,#e8e8e8,#d8d8d8)',price:'₱15/hr'},
+  {id:9,cat:'cafe',name:'Brewed Minds Coffee Co.',loc:'Nepo Quad, Angeles City',rating:5,reviews:312,avail:'open',seats:9,tags:['Study-Friendly','Free WiFi','Power Outlets','Cozy Vibe'],hours:'Open until 11:00 PM',emoji:'☕',bg:'linear-gradient(135deg,#f8e8d0,#f0d0a8)',price:'Min. order'},
+  {id:10,cat:'cafe',name:'Pages & Latte Studyspace',loc:'Marquee Mall Area, AC',rating:4,reviews:145,avail:'busy',seats:2,tags:['Book Corner','Quiet Hours','Fast WiFi'],hours:'Open until 10:00 PM',emoji:'🫖',bg:'linear-gradient(135deg,#f0e8d8,#e0d0b8)',price:'Min. order'},
+  {id:11,cat:'cafe',name:'SipStudy Milk Tea & Co.',loc:'Sto. Rosario St., San Fernando',rating:4,reviews:73,avail:'open',seats:15,tags:['Milk Tea','Study Tables','Chill Music'],hours:'Open until 10:00 PM',emoji:'🧋',bg:'linear-gradient(135deg,#f8f0d8,#f0e0b0)',price:'Min. order'},
+  {id:12,cat:'cafe',name:'Garden Sip Open Café',loc:'Dolores, San Fernando',rating:3,reviews:29,avail:'open',seats:6,tags:['Outdoor Seating','Budget Menu'],hours:'Open until 7:00 PM',emoji:'🌿',bg:'linear-gradient(135deg,#e8f0e0,#d0e8c0)',price:'Min. order'},
+];
+
+// Pre-seeded admin account
+const ADMIN = {firstName:'Admin',lastName:'Studify',email:'admin@studify.app',password:'admin123',role:'admin'};
+let users = {'admin@studify.app': ADMIN};
+let reservations = [];
+let currentUser = null;
+let pendingPlace = null;
+let activeCat = 'all';
+let minStar = 0;
+let nextPlaceId = 100;
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.className = 'toast', 3200);
+}
+function scrollToSection(id) { document.getElementById(id)?.scrollIntoView({behavior:'smooth'}); }
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({top:0});
+}
+function goHome() { showPage('landingPage'); }
+function showUserDash() { showPage('userDashPage'); renderUserDash(); }
+function showAdminDash() { showPage('adminDashPage'); renderAdminDash(); }
+
+// ═══════════════════════════════════════════════════════════
+// PLACES RENDERING
+// ═══════════════════════════════════════════════════════════
+function starsHTML(r) {
+  let s=''; for(let i=1;i<=5;i++) s+=`<span class="${i<=r?'star':'star-empty'}">★</span>`; return s;
+}
+function availLabel(p) {
+  if(p.avail==='full') return `<span class="dot dot-full"></span> Full`;
+  if(p.avail==='busy') return `<span class="dot dot-busy"></span> Busy · ${p.seats} seat${p.seats!==1?'s':''}`;
+  return `<span class="dot dot-open"></span> Open · ${p.seats} seat${p.seats!==1?'s':''}`;
+}
+function badgeCls(cat){return cat==='study'?'badge-study':cat==='computer'?'badge-computer':'badge-cafe';}
+function badgeLbl(cat){return cat==='study'?'Study Place':cat==='computer'?'Computer Shop':'Café';}
+function catEmojis(){return{study:'📖',computer:'💻',cafe:'☕'};}
+const BG_COLORS = ['linear-gradient(135deg,#c8e6e6,#a8d5d5)','linear-gradient(135deg,#d4e8c8,#b8d8a0)','linear-gradient(135deg,#e8e0f8,#d0c0f0)','linear-gradient(135deg,#fde8c8,#f8d0a0)','linear-gradient(135deg,#c8d8f8,#a8c0f0)','linear-gradient(135deg,#f8e8d0,#f0d0a8)'];
+
+function renderPlaces() {
+  const grid = document.getElementById('placesGrid');
+  const filtered = PLACES.filter(p => (activeCat==='all'||p.cat===activeCat) && p.rating>=minStar);
+  document.getElementById('placesCount').textContent = `Showing ${filtered.length} space${filtered.length!==1?'s':''}`;
+  if(!filtered.length){grid.innerHTML='<div class="no-results">🔍 No spaces match your filters.</div>';return;}
+  grid.innerHTML = filtered.map(p=>`
+    <div class="place-card">
+      <div class="place-img-bg" style="background:${p.bg||BG_COLORS[p.id%BG_COLORS.length]}">${p.emoji||'📍'}
+        <span class="place-badge ${badgeCls(p.cat)}">${badgeLbl(p.cat)}</span>
+        <span class="avail-dot">${availLabel(p)}</span>
+      </div>
+      <div class="place-body">
+        <h3>${p.name}</h3>
+        <div class="place-location">📍 ${p.loc}</div>
+        <div class="place-stars">${starsHTML(p.rating)}<span class="place-rating-num">${p.rating}.0 (${p.reviews||0} reviews)</span></div>
+        <div class="place-tags">${(p.tags||[]).map(t=>`<span class="place-tag">${t}</span>`).join('')}</div>
+        <div class="place-footer">
+          <span class="place-seats">🕐 ${p.hours}</span>
+          ${p.avail==='full'?`<button class="btn-reserve" disabled>Full</button>`:`<button class="btn-reserve" onclick="startReserve(${p.id})">Reserve →</button>`}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+document.querySelectorAll('.filter-btn[data-cat]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.filter-btn[data-cat]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); activeCat=btn.dataset.cat; loadSpaces().then(()=>applyAllFilters());
+  });
+});
+document.getElementById('starFilter').addEventListener('change',e=>{minStar=parseFloat(e.target.value);applyAllFilters();});
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+function openAuth(tab='login') {
+  document.getElementById('authOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  switchTab(tab);
+  document.getElementById('authSuccess').classList.remove('show');
+  document.getElementById('authPanelsWrap').classList.remove('hide');
+  clearErrors();
+}
+function closeAuth() { document.getElementById('authOverlay').classList.remove('open'); document.body.style.overflow=''; }
+function switchTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  document.querySelectorAll('.auth-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+tab));
+  clearErrors();
+}
+function clearErrors() { document.querySelectorAll('.form-error').forEach(e=>{e.classList.remove('show');e.textContent='';}); }
+function showError(id,msg){const el=document.getElementById(id);if(el){el.textContent=msg;el.classList.add('show');}}
+function isValidEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);}
+
+document.getElementById('authClose').addEventListener('click',closeAuth);
+document.getElementById('authOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('authOverlay'))closeAuth();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeAuth();closeResModal();closePlaceModal();}});
+document.querySelectorAll('.auth-tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.tab)));
+document.getElementById('goSignup').addEventListener('click',()=>switchTab('signup'));
+document.getElementById('goLogin').addEventListener('click',()=>switchTab('login'));
+
+document.getElementById('loginBtn').addEventListener('click', async ()=>{
+  clearErrors();
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  let ok=true;
+  if(!isValidEmail(email)){showError('login-email-err','Please enter a valid email.');ok=false;}
+  if(pass.length<6){showError('login-pass-err','Password must be at least 6 characters.');ok=false;}
+  if(!ok) return;
+  try {
+    const res = await fetch(`${API}/api/auth/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pass})
+    });
+    const data = await res.json();
+    if(!res.ok){showError('login-general-err', data.error || 'Login failed.');return;}
+    localStorage.setItem('studify_token', data.token);
+    loginSuccess(data.user);
+  } catch(e) {
+    // fallback to local users if API is down
+    if(!users[email]){showError('login-general-err','No account found. Please sign up.');return;}
+    if(users[email].password!==pass){showError('login-general-err','Incorrect password.');return;}
+    loginSuccess(users[email]);
+  }
+});
+
+document.getElementById('signupBtn').addEventListener('click', async ()=>{
+  clearErrors();
+  const first=document.getElementById('signup-first').value.trim();
+  const last=document.getElementById('signup-last').value.trim();
+  const email=document.getElementById('signup-email').value.trim();
+  const pass=document.getElementById('signup-pass').value;
+  const terms=document.getElementById('terms').checked;
+  let ok=true;
+  if(!first||!last){showError('signup-general-err','Please enter your full name.');ok=false;}
+  if(!isValidEmail(email)){showError('signup-email-err','Please enter a valid email.');ok=false;}
+  if(pass.length<6){showError('signup-pass-err','At least 6 characters required.');ok=false;}
+  if(!terms){showError('signup-general-err','Please agree to the Terms of Service.');ok=false;}
+  if(!ok) return;
+  try {
+    const res = await fetch(`${API}/api/auth/register`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({firstName:first, lastName:last, email, password:pass})
+    });
+    const data = await res.json();
+    if(!res.ok){showError('signup-email-err', data.error || 'Registration failed.');return;}
+    localStorage.setItem('studify_token', data.token);
+    loginSuccess(data.user);
+  } catch(e) {
+    if(users[email]){showError('signup-email-err','Account already exists. Please log in.');return;}
+    const user={firstName:first,lastName:last,email,password:pass,role:'user'};
+    users[email]=user;
+    loginSuccess(user);
+  }
+});
+
+function googleSignIn(){
+  const email='google'+Date.now()+'@gmail.com';
+  const user={firstName:'Google',lastName:'User',email,password:'google',role:'user'};
+  users[email]=user; loginSuccess(user);
+}
+
+function loginSuccess(user){
+  currentUser=user;
+  document.getElementById('authPanelsWrap').classList.add('hide');
+  document.getElementById('authSuccess').classList.add('show');
+  document.getElementById('successTitle').textContent=`Welcome, ${user.firstName}! 🎉`;
+  const isAdmin=user.role==='admin';
+  const isOwner=user.role==='owner';
+  document.getElementById('successMsg').textContent=
+    isAdmin?'Redirecting to Admin Panel…':
+    isOwner?'Redirecting to your Space Panel…':
+    'Redirecting to your dashboard…';
+  setTimeout(()=>{
+    closeAuth(); updateNav();
+    if(isAdmin){showAdminDash(); showToast(`Welcome, Admin ${user.firstName}! 🛡️`);}
+    else if(isOwner){showOwnerDash(); showToast(`Welcome, ${user.firstName}! Manage your space. 🏢`);}
+    else{showUserDash(); showToast(`Welcome back, ${user.firstName}!`);}
+  },1600);
+}
+
+function logout(){currentUser=null; updateNav(); goHome(); showToast('Logged out successfully.','');}
+
+function updateNav(){
+  const li=!!currentUser;
+  const isAdmin=li&&currentUser.role==='admin';
+  const isOwner=li&&currentUser.role==='owner';
+  document.getElementById('navAuthBtn').style.display=li?'none':'';
+  document.getElementById('navDashBtn').style.display=(li&&!isAdmin&&!isOwner)?'':'none';
+  document.getElementById('navAdminBtn').style.display=isAdmin?'':'none';
+  document.getElementById('navOwnerBtn').style.display=isOwner?'':'none';
+  document.getElementById('navUser').style.display=li?'flex':'none';
+  document.getElementById('navAdminBadge').style.display=isAdmin?'':'none';
+  if(li){
+    const av=document.getElementById('navAvatar');
+    av.textContent=currentUser.firstName[0].toUpperCase();
+    av.className='nav-avatar'+(isAdmin?' admin-av':isOwner?' owner-av':'');
+    document.getElementById('navUserName').textContent=currentUser.firstName+' '+currentUser.lastName;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RESERVATION (USER)
+// ═══════════════════════════════════════════════════════════
+function startReserve(placeId){
+  if(!currentUser){openAuth('login');showToast('Please log in to reserve.','error');return;}
+  if(currentUser.role==='admin'){showToast('Admins cannot make reservations. Use a user account.','warn');return;}
+  pendingPlace=PLACES.find(p=>p.id===placeId);
+  if(!pendingPlace) return;
+  document.getElementById('resModalTitle').textContent=pendingPlace.name;
+  document.getElementById('resModalSub').textContent=`📍 ${pendingPlace.loc}`;
+  const today=new Date().toISOString().split('T')[0];
+  document.getElementById('resDate').min=today;
+  document.getElementById('resDate').value=today;
+  updateResSummary();
+  document.getElementById('resOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeResModal(){document.getElementById('resOverlay').classList.remove('open');document.body.style.overflow='';}
+document.getElementById('resOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('resOverlay'))closeResModal();});
+['resDate','resStart','resDuration','resPersons'].forEach(id=>document.getElementById(id).addEventListener('change',updateResSummary));
+
+function calcPrice(place, dur, persons) {
+  if(!place) return {total:'Free', perHour:null, isFree:true};
+  const priceStr = place.price || place.hours || '';
+  // extract numeric price per hour
+  const match = priceStr.match(/[₱P](\d+)/i);
+  if(!match) return {total:'Free', perHour:null, isFree:true};
+  const perHr = parseInt(match[1]);
+  const total = perHr * dur * persons;
+  return {total:`₱${total.toLocaleString()}`, perHour:perHr, isFree:false, breakdown:`₱${perHr}/hr × ${dur}hr${dur!==1?'s':''} × ${persons} person${persons!==1?'s':''}`};
+}
+
+function updateResSummary(){
+  if(!pendingPlace) return;
+  const date=document.getElementById('resDate').value;
+  const start=document.getElementById('resStart').value;
+  const dur=parseInt(document.getElementById('resDuration').value);
+  const persons=parseInt(document.getElementById('resPersons').value)||1;
+  const fmt=date?new Date(date+'T12:00:00').toLocaleDateString('en-PH',{weekday:'short',month:'short',day:'numeric',year:'numeric'}):'—';
+  const pricing = calcPrice(pendingPlace, dur, persons);
+  // show live price widget
+  const priceLive = document.getElementById('priceLive');
+  const priceAmount = document.getElementById('priceAmount');
+  const priceSub = document.getElementById('priceSub');
+  if(!pricing.isFree){
+    priceLive.style.display='block';
+    priceAmount.textContent = pricing.total;
+    priceSub.textContent = pricing.breakdown;
+  } else {
+    priceLive.style.display='none';
+  }
+  document.getElementById('resSummary').innerHTML=`
+    <div class="res-summary-row"><span>📍 Location</span><span>${pendingPlace.name}</span></div>
+    <div class="res-summary-row"><span>📅 Date</span><span>${fmt}</span></div>
+    <div class="res-summary-row"><span>🕐 Time</span><span>${start}</span></div>
+    <div class="res-summary-row"><span>⏱ Duration</span><span>${dur} hour${dur!==1?'s':''}</span></div>
+    <div class="res-summary-row"><span>👥 Persons</span><span>${persons} person${persons!==1?'s':''}</span></div>
+    <div class="res-summary-row"><span>💰 Total Price</span><span><strong>${pricing.total}</strong></span></div>`;
+}
+
+async function confirmReservation(){
+  const date=document.getElementById('resDate').value;
+  if(!date){showToast('Please select a date.','error');return;}
+  const token = localStorage.getItem('studify_token');
+  try {
+    const res = await fetch(`${API}/api/reservations`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${token}`},
+      body: JSON.stringify({
+        spaceId:  pendingPlace.id,
+        date,
+        start:    document.getElementById('resStart').value,
+        duration: document.getElementById('resDuration').value,
+        persons:  document.getElementById('resPersons').value,
+        notes:    document.getElementById('resNotes').value,
+        totalPrice: calcPrice(pendingPlace, parseInt(document.getElementById('resDuration').value), parseInt(document.getElementById('resPersons').value)).total,
+      })
+    });
+    const data = await res.json();
+    if(!res.ok){showToast(data.error || 'Reservation failed.','error');return;}
+    closeResModal();
+    showToast(`✅ Reserved at ${pendingPlace.name}!`);
+    showUserDash();
+  } catch(e) {
+    // fallback: save locally
+    const r={
+      id:Date.now(),userEmail:currentUser.email,userName:currentUser.firstName+' '+currentUser.lastName,
+      placeId:pendingPlace.id,placeName:pendingPlace.name,placeEmoji:pendingPlace.emoji,
+      placeLoc:pendingPlace.loc,placeCat:pendingPlace.cat,
+      date,start:document.getElementById('resStart').value,
+      duration:parseInt(document.getElementById('resDuration').value),
+      notes:document.getElementById('resNotes').value,
+      price:pendingPlace.price,status:'confirmed'
+    };
+    reservations.push(r);
+    closeResModal();
+    showToast(`✅ Reserved at ${pendingPlace.name}!`);
+    showUserDash();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// USER DASHBOARD
+// ═══════════════════════════════════════════════════════════
+async function renderUserDash(){
+  if(!currentUser) return;
+  document.getElementById('dashName').textContent=currentUser.firstName;
+  const token = localStorage.getItem('studify_token');
+  let myRes = reservations.filter(r=>r.userEmail===currentUser.email);
+  try {
+    const res = await fetch(`${API}/api/reservations/mine`, {
+      headers: {'Authorization': `Bearer ${token}`}
+    });
+    if(res.ok) { myRes = await res.json(); reservations = myRes; }
+  } catch(e) { console.log('Using local reservations'); }
+  document.getElementById('totalRes').textContent=myRes.length;
+  document.getElementById('upcomingRes').textContent=myRes.filter(r=>r.status==='confirmed').length;
+  const cc={study:0,computer:0,cafe:0};
+  myRes.forEach(r=>{const cat=r.placeCat||r.cat;if(cc[cat]!==undefined)cc[cat]++;});
+  const fav=Object.entries(cc).sort((a,b)=>b[1]-a[1])[0];
+  const fl={study:'📚 Study',computer:'💻 Computer',cafe:'☕ Café'};
+  document.getElementById('favType').textContent=fav[1]>0?fl[fav[0]]:'—';
+  const list=document.getElementById('reservationList');
+  if(!myRes.length){list.innerHTML='<div class="empty-state"><div style="font-size:3rem">📭</div><p>No reservations yet. Browse spaces and book your first spot!</p></div>';return;}
+  list.innerHTML=myRes.slice().reverse().map(r=>{
+    const dateStr = r.date || '';
+    const d = dateStr ? new Date(dateStr+'T12:00:00').toLocaleDateString('en-PH',{weekday:'short',month:'short',day:'numeric',year:'numeric'}) : '—';
+    const startStr = r.start || r.start_time || '';
+    const dur = r.duration || r.duration_hrs || 1;
+    const emoji = r.placeEmoji || r.place_emoji || '📍';
+    const name = r.placeName || r.place_name || 'Unknown';
+    const notes = r.notes || '';
+    return `<div class="reservation-item">
+      <div class="res-emoji">${emoji}</div>
+      <div class="res-info">
+        <div class="res-name">${name}</div>
+        <div class="res-meta">📅 ${d} &nbsp;|&nbsp; 🕐 ${startStr} &nbsp;|&nbsp; ⏱ ${dur}hr${dur!==1?'s':''}</div>
+        ${notes?`<div class="res-meta">📝 ${notes}</div>`:''}
+      </div>
+      <span class="res-status ${r.status}">${r.status}</span>
+      ${r.status==='confirmed'?`<button class="btn-cancel-res" onclick="cancelMyRes(${r.id})">Cancel</button>`:''}
+      ${r.status==='confirmed'?`<button class="btn-rate" onclick="openRatingModal(${r.placeId||r.space_id},'${(r.placeName||r.place_name||'').replace(/'/g,"\'")}','${(r.placeLoc||r.place_loc||'').replace(/'/g,"\'")}')">⭐ Rate</button>`:''}
+      ${r.status==='cancelled'&&r.userRating?`<span class="rated-badge">⭐ Rated ${r.userRating}/5</span>`:''}
+    </div>`;
+  }).join('');
+}
+async function cancelMyRes(id){
+  const token = localStorage.getItem('studify_token');
+  try {
+    const res = await fetch(`${API}/api/reservations/${id}/cancel`, {
+      method: 'PATCH',
+      headers: {'Authorization': `Bearer ${token}`}
+    });
+    if(res.ok){ renderUserDash(); showToast('Reservation cancelled.'); return; }
+  } catch(e) {}
+  const r=reservations.find(r=>r.id===id);
+  if(r){r.status='cancelled';renderUserDash();showToast('Reservation cancelled.');}
+}
+
+// ═══════════════════════════════════════════════════════════
+// ADMIN DASHBOARD
+// ═══════════════════════════════════════════════════════════
+document.querySelectorAll('.admin-tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.admin-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.panel).classList.add('active');
+  });
+});
+
+async function renderAdminDash(){
+  const token = localStorage.getItem('studify_token');
+  try {
+    const [spacesRes, resRes, usersRes] = await Promise.all([
+      fetch(`${API}/api/spaces`),
+      fetch(`${API}/api/reservations`, {headers:{'Authorization':`Bearer ${token}`}}),
+      fetch(`${API}/api/users`, {headers:{'Authorization':`Bearer ${token}`}})
+    ]);
+    if(spacesRes.ok) PLACES = await spacesRes.json();
+    if(resRes.ok) reservations = await resRes.json();
+    if(usersRes.ok) {
+      const apiUsers = await usersRes.json();
+      apiUsers.forEach(u => { users[u.email] = {firstName:u.firstName||u.first_name, lastName:u.lastName||u.last_name, email:u.email, role:u.role}; });
+    }
+  } catch(e) { console.log('Using local data for admin'); }
+  const userCount=Object.keys(users).filter(e=>users[e].role!=='admin').length;
+  document.getElementById('aStatPlaces').textContent=PLACES.length;
+  document.getElementById('aStatUsers').textContent=userCount;
+  document.getElementById('aStatRes').textContent=reservations.length;
+  document.getElementById('aStatPending').textContent=reservations.filter(r=>r.status==='confirmed').length;
+  renderAdminRes(); renderAdminSpaces(); renderAdminUsers(); renderSeatsPanel();
+}
+
+function renderAdminRes(){
+  const q=(document.getElementById('resSearch').value||'').toLowerCase();
+  const rows=reservations.filter(r=>
+    r.placeName.toLowerCase().includes(q)||r.userName.toLowerCase().includes(q)||r.date.includes(q)
+  );
+  document.getElementById('adminResBody').innerHTML=rows.length
+    ? rows.slice().reverse().map(r=>`<tr>
+        <td>${r.placeEmoji} ${r.placeName}</td>
+        <td>${r.userName}</td>
+        <td>${r.date}</td>
+        <td>${r.start}</td>
+        <td>${r.duration}hr${r.duration!==1?'s':''}</td>
+        <td><span class="tbl-status ${r.status}">${r.status}</span></td>
+        <td><div class="tbl-actions">
+          ${r.status==='confirmed'?`<button class="btn-tbl btn-tbl-cancel" onclick="adminCancelRes(${r.id})">Cancel</button>`:''}
+          ${r.status==='cancelled'?`<button class="btn-tbl btn-tbl-approve" onclick="adminApproveRes(${r.id})">Restore</button>`:''}
+        </div></td>
+      </tr>`).join('')
+    : '<tr><td colspan="7" style="text-align:center;opacity:0.4;padding:2rem">No reservations found.</td></tr>';
+}
+function adminCancelRes(id){const r=reservations.find(r=>r.id===id);if(r){r.status='cancelled';renderAdminDash();showToast('Reservation cancelled.','warn');}}
+function adminApproveRes(id){const r=reservations.find(r=>r.id===id);if(r){r.status='confirmed';renderAdminDash();showToast('Reservation restored.');}}
+
+function renderAdminSpaces(){
+  const q=(document.getElementById('spaceSearch').value||'').toLowerCase();
+  const rows=PLACES.filter(p=>p.name.toLowerCase().includes(q)||(p.loc||'').toLowerCase().includes(q)||p.cat.includes(q));
+  document.getElementById('adminSpacesBody').innerHTML=rows.map(p=>`<tr>
+    <td>${p.emoji} ${p.name}</td>
+    <td>${badgeLbl(p.cat)}</td>
+    <td>${p.loc}</td>
+    <td>${starsHTML(p.rating)} ${p.rating}.0</td>
+    <td>
+      <div class="seat-adjuster">
+        <button class="seat-adj-btn seat-adj-minus" onclick="adjustSeat(${p.id},-1)" title="Remove 1 seat">−</button>
+        <span class="seat-count-display" id="seat-${p.id}">${p.seats}</span>
+        <button class="seat-adj-btn seat-adj-plus" onclick="adjustSeat(${p.id},1)" title="Add 1 seat">+</button>
+      </div>
+    </td>
+    <td><span class="tbl-status ${p.avail}">${p.avail}</span></td>
+    <td><div class="tbl-actions">
+      <button class="btn-tbl btn-tbl-edit" onclick="openEditPlaceModal(${p.id})">Edit</button>
+      <button class="btn-tbl btn-tbl-toggle" onclick="toggleAvail(${p.id})">${p.avail==='full'?'Re-open':'Toggle'}</button>
+      <button class="btn-tbl btn-tbl-delete" onclick="deletePlace(${p.id})">Delete</button>
+    </div></td>
+  </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;opacity:0.4;padding:2rem">No spaces found.</td></tr>';
+}
+function renderSeatsPanel(){
+  const q=(document.getElementById('seatSearch')?.value||'').toLowerCase();
+  const rows=PLACES.filter(p=>!q||(p.name||'').toLowerCase().includes(q)||(p.loc||'').toLowerCase().includes(q));
+  // overview cards — show first 6
+  const overview = rows.slice(0,6);
+  document.getElementById('seatsOverview').innerHTML = overview.map(p=>{
+    const total = p.total_seats||p.seats||10;
+    const avail = p.seats||0;
+    const pct = Math.round((avail/total)*100);
+    const barColor = p.avail==='open'?'#22c55e':p.avail==='busy'?'#f59e0b':'#ef4444';
+    return `<div class="seat-overview-card seat-ov-${p.avail}">
+      <div class="seat-ov-name">${p.emoji} ${p.name}</div>
+      <div class="seat-ov-bar-wrap"><div class="seat-ov-bar" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="seat-ov-nums"><span>${avail} available</span><span>${total} total</span></div>
+    </div>`;
+  }).join('');
+  // table
+  document.getElementById('seatsBody').innerHTML = rows.map(p=>{
+    const total = p.total_seats||p.seats||10;
+    const avail = p.seats||0;
+    const pct = Math.round((avail/total)*100);
+    const barColor = p.avail==='open'?'#22c55e':p.avail==='busy'?'#f59e0b':'#ef4444';
+    return `<tr>
+      <td><strong>${p.emoji} ${p.name}</strong><div style="font-size:0.75rem;opacity:0.5">📍 ${p.loc}</div></td>
+      <td>${badgeLbl(p.cat)}</td>
+      <td><span class="tbl-status ${p.avail}">${p.avail}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:0.6rem;">
+          <div style="flex:1;background:rgba(15,31,61,0.08);border-radius:100px;height:8px;min-width:80px;">
+            <div style="width:${pct}%;background:${barColor};height:8px;border-radius:100px;transition:width 0.3s;"></div>
+          </div>
+          <div class="seat-adjuster">
+            <button class="seat-adj-btn seat-adj-minus" onclick="adjustSeat(${p.id},-1)">−</button>
+            <span class="seat-count-display" id="seatpanel-${p.id}" style="font-size:1.1rem">${avail}</span>
+            <button class="seat-adj-btn seat-adj-plus" onclick="adjustSeat(${p.id},1)">+</button>
+          </div>
+        </div>
+      </td>
+      <td>${total}</td>
+      <td>
+        <div style="display:flex;gap:0.4rem;">
+          <button class="btn-tbl btn-tbl-approve" onclick="setAvail(${p.id},'open')">Open</button>
+          <button class="btn-tbl btn-tbl-edit" onclick="setAvail(${p.id},'busy')">Busy</button>
+          <button class="btn-tbl btn-tbl-cancel" onclick="setAvail(${p.id},'full')">Full</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;opacity:0.4;padding:2rem">No spaces found.</td></tr>';
+}
+
+async function adjustSeat(id, delta){
+  const p = PLACES.find(p=>p.id===id);
+  if(!p) return;
+  const newVal = Math.max(0, (p.seats||0) + delta);
+  const total = p.total_seats || newVal;
+  const newStatus = newVal===0?'full':newVal<=3?'busy':'open';
+  await updateSpaceOnServer(id, {available: newVal, status: newStatus});
+  p.seats = newVal;
+  p.avail = newStatus;
+  // update seat displays instantly
+  const el1 = document.getElementById(`seat-${id}`);
+  const el2 = document.getElementById(`seatpanel-${id}`);
+  if(el1) el1.textContent = newVal;
+  if(el2) el2.textContent = newVal;
+  renderSeatsPanel();
+  renderAdminSpaces();
+  applyAllFilters();
+  showToast(`${p.name}: ${newVal} seat${newVal!==1?'s':''} available`);
+  // push real-time to all users
+  socketLocalUpdate(id, newVal, newStatus);
+}
+
+async function setAvail(id, status){
+  const p = PLACES.find(p=>p.id===id);
+  if(!p) return;
+  const newSeats = status==='full'?0:status==='open'?(p.total_seats||10):Math.min(3,p.seats||3);
+  await updateSpaceOnServer(id, {available: newSeats, status});
+  p.avail = status;
+  p.seats = newSeats;
+  renderSeatsPanel();
+  renderAdminSpaces();
+  applyAllFilters();
+  showToast(`${p.name} marked as ${status}`);
+  socketLocalUpdate(id, newSeats, status);
+}
+
+async function updateSpaceOnServer(id, data){
+  const token = localStorage.getItem('studify_token');
+  try {
+    await fetch(`${API}/api/spaces/${id}`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body: JSON.stringify(data)
+    });
+  } catch(e){ console.log('Could not sync to server, updated locally only'); }
+}
+
+function socketLocalUpdate(spaceId, available, status){
+  // update the landing page cards too
+  const place = PLACES.find(p=>p.id===spaceId);
+  if(place){ place.seats=available; place.avail=status; applyAllFilters(); }
+}
+
+function toggleAvail(id){
+  const p=PLACES.find(p=>p.id===id);
+  if(!p) return;
+  p.avail=p.avail==='open'?'busy':p.avail==='busy'?'full':'open';
+  renderAdminDash(); renderPlaces(); showToast(`${p.name} → ${p.avail}`);
+}
+function deletePlace(id){
+  if(!confirm('Delete this space?')) return;
+  PLACES=PLACES.filter(p=>p.id!==id);
+  renderAdminDash(); renderPlaces(); showToast('Space deleted.','warn');
+}
+
+function renderAdminUsers(){
+  const q=(document.getElementById('userSearch').value||'').toLowerCase();
+  const rows=Object.values(users).filter(u=>
+    (u.firstName+' '+u.lastName).toLowerCase().includes(q)||u.email.toLowerCase().includes(q)
+  );
+  document.getElementById('adminUsersBody').innerHTML=rows.map(u=>{
+    const count=reservations.filter(r=>r.userEmail===u.email).length;
+    return `<tr>
+      <td>${u.firstName} ${u.lastName}</td>
+      <td>${u.email}</td>
+      <td><span class="tbl-status ${u.role==='admin'?'pending':'confirmed'}">${u.role}</span></td>
+      <td>${count} reservation${count!==1?'s':''}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="text-align:center;opacity:0.4;padding:2rem">No users found.</td></tr>';
+}
+
+// ═══════════════════════════════════════════════════════════
+// PLACE MODAL (ADD / EDIT)
+// ═══════════════════════════════════════════════════════════
+function openAddPlaceModal(){
+  document.getElementById('placeModalTitle').textContent='Add New Space';
+  document.getElementById('editPlaceId').value='';
+  document.getElementById('editName').value='';
+  document.getElementById('editCat').value='study';
+  document.getElementById('editLoc').value='';
+  document.getElementById('editSeats').value='';
+  document.getElementById('editRating').value='4';
+  document.getElementById('editHours').value='';
+  document.getElementById('editAvail').value='open';
+  document.getElementById('editTags').value='';
+  document.getElementById('placeModalOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function openEditPlaceModal(id){
+  const p=PLACES.find(p=>p.id===id); if(!p) return;
+  document.getElementById('placeModalTitle').textContent='Edit Space';
+  document.getElementById('editPlaceId').value=p.id;
+  document.getElementById('editName').value=p.name;
+  document.getElementById('editCat').value=p.cat;
+  document.getElementById('editLoc').value=p.loc;
+  document.getElementById('editSeats').value=p.seats;
+  document.getElementById('editRating').value=p.rating;
+  document.getElementById('editHours').value=p.hours;
+  document.getElementById('editAvail').value=p.avail;
+  document.getElementById('editTags').value=(p.tags||[]).join(', ');
+  document.getElementById('placeModalOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closePlaceModal(){document.getElementById('placeModalOverlay').classList.remove('open');document.body.style.overflow='';}
+function savePlaceModal(){
+  const id=document.getElementById('editPlaceId').value;
+  const name=document.getElementById('editName').value.trim();
+  const cat=document.getElementById('editCat').value;
+  const loc=document.getElementById('editLoc').value.trim();
+  const seats=parseInt(document.getElementById('editSeats').value)||0;
+  const rating=Math.min(5,Math.max(1,parseInt(document.getElementById('editRating').value)||4));
+  const hours=document.getElementById('editHours').value.trim();
+  const avail=document.getElementById('editAvail').value;
+  const tags=document.getElementById('editTags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  if(!name||!loc){showToast('Name and location are required.','error');return;}
+  const emojis={study:'📖',computer:'💻',cafe:'☕'};
+  if(id){
+    const p=PLACES.find(p=>p.id===parseInt(id));
+    if(p){Object.assign(p,{name,cat,loc,seats,rating,hours,avail,tags,emoji:emojis[cat]});}
+    showToast('Space updated!');
+  } else {
+    PLACES.push({id:nextPlaceId++,cat,name,loc,rating,reviews:0,avail,seats,tags,hours,emoji:emojis[cat],bg:BG_COLORS[nextPlaceId%BG_COLORS.length],price:hours});
+    showToast('New space added!');
+  }
+  closePlaceModal(); renderAdminDash(); renderPlaces();
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOCATION SEARCH + GPS
+// ═══════════════════════════════════════════════════════════
+let userLat = null, userLng = null;
+
+// Coordinates for each space (Angeles/Pampanga area)
+const SPACE_COORDS = {
+  4:  {lat:15.1449, lng:120.5887}, // University Library
+  5:  {lat:15.1600, lng:120.5700}, // Greenfield Hub
+  6:  {lat:15.1490, lng:120.5950}, // Scholar's Den
+  7:  {lat:15.1350, lng:120.5900}, // Barangay Reading Room
+  8:  {lat:15.1650, lng:120.5580}, // TechZone Dau
+  9:  {lat:15.1430, lng:120.6010}, // CyberPoint
+  10: {lat:15.1510, lng:120.6100}, // PixelHub
+  11: {lat:15.0500, lng:120.6900}, // NetKing Sto Rosario
+  12: {lat:15.1530, lng:120.5960}, // Brewed Minds
+  13: {lat:15.1600, lng:120.6200}, // Pages & Latte
+  14: {lat:15.0500, lng:120.6900}, // SipStudy
+  15: {lat:15.0450, lng:120.7100}, // Garden Sip
+};
+
+function getDistanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2-lat1)*Math.PI/180;
+  const dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+            Math.sin(dLng/2)*Math.sin(dLng/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function findNearest() {
+  const btn = document.getElementById('gpsBtn');
+  if(!navigator.geolocation){ showToast('GPS not supported on this browser.','error'); return; }
+  btn.classList.add('loading');
+  btn.textContent = '📡 Locating...';
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    btn.classList.remove('loading');
+    btn.textContent = '📍 Nearest to Me ✓';
+    btn.style.background = 'var(--teal)';
+    btn.style.color = '#fff';
+    showToast('Location found! Spaces sorted by distance.','success');
+    applyAllFilters();
+  }, err => {
+    btn.classList.remove('loading');
+    btn.textContent = '📍 Nearest to Me';
+    showToast('Could not get location. Please allow GPS access.','error');
+  });
+}
+
+function applyAllFilters() {
+  const searchQ = (document.getElementById('locationSearch')?.value || '').toLowerCase().trim();
+  let filtered = PLACES.filter(p => {
+    const catOk = activeCat === 'all' || p.cat === activeCat;
+    const starOk = p.rating >= minStar;
+    const locOk = !searchQ || 
+      (p.loc||'').toLowerCase().includes(searchQ) || 
+      (p.name||'').toLowerCase().includes(searchQ);
+    return catOk && starOk && locOk;
+  });
+  // sort by distance if GPS available
+  if(userLat && userLng) {
+    filtered = filtered.map(p => {
+      const coords = SPACE_COORDS[p.id];
+      const dist = coords ? getDistanceKm(userLat, userLng, coords.lat, coords.lng) : 999;
+      return {...p, _dist: dist};
+    }).sort((a,b) => a._dist - b._dist);
+  }
+  document.getElementById('placesCount').textContent = `Showing ${filtered.length} space${filtered.length!==1?'s':''}`;
+  const grid = document.getElementById('placesGrid');
+  if(!filtered.length){ grid.innerHTML='<div class="no-results">🔍 No spaces match your filters.</div>'; return; }
+  grid.innerHTML = filtered.map(p => {
+    const distBadge = (userLat && SPACE_COORDS[p.id]) 
+      ? `<span class="distance-badge">📍 ${p._dist.toFixed(1)} km away</span>` : '';
+    return `
+    <div class="place-card">
+      <div class="place-img-bg" style="background:${p.bg||BG_COLORS[p.id%BG_COLORS.length]}">${p.emoji||'📍'}
+        <span class="place-badge ${badgeCls(p.cat)}">${badgeLbl(p.cat)}</span>
+        <span class="avail-dot">${availLabel(p)}</span>
+        ${distBadge}
+      </div>
+      <div class="place-body">
+        <h3>${p.name}</h3>
+        <div class="place-location">📍 ${p.loc}</div>
+        <div class="place-stars">${starsHTML(p.rating)}<span class="place-rating-num">${p.rating}.0 (${p.reviews||0} reviews)</span></div>
+        <div class="place-tags">${(p.tags||[]).map(t=>`<span class="place-tag">${t}</span>`).join('')}</div>
+        <div class="place-footer">
+          <span class="place-seats">🕐 ${p.hours}</span>
+          ${p.avail==='full'?`<button class="btn-reserve" disabled>Full</button>`:`<button class="btn-reserve" onclick="startReserve(${p.id})">Reserve →</button>`}
+        </div>
+      </div>
+    </div>`}).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+// OWNER DASHBOARD
+// ═══════════════════════════════════════════════════════════
+let ownerSpace = null;
+let ownerLog   = [];
+let bulkMode   = 'in';
+let ownerTodayCount = 0;
+
+function showOwnerDash() {
+  showPage('ownerDashPage');
+  loadOwnerSpace();
+}
+
+async function loadOwnerSpace() {
+  if(!currentUser) return;
+  // Find space assigned to this owner
+  try {
+    const res = await fetch(`${API}/api/spaces`);
+    const spaces = await res.json();
+    // owner sees their assigned space (matched by owner_id or email)
+    const mySpace = spaces.find(s => s.owner_email === currentUser.email) || spaces.find(s => s.owner_id === currentUser.id);
+    if(mySpace) {
+      ownerSpace = mySpace;
+    } else {
+      // fallback: show first space for demo
+      ownerSpace = spaces[0];
+    }
+  } catch(e) {
+    ownerSpace = PLACES[0];
+  }
+  renderOwnerDash();
+}
+
+function renderOwnerDash() {
+  if(!ownerSpace) return;
+  const total   = ownerSpace.total_seats || ownerSpace.seats || 10;
+  const avail   = ownerSpace.seats !== undefined ? ownerSpace.seats : ownerSpace.available || 10;
+  const occupied = total - avail;
+  const pct     = Math.round((avail / total) * 100);
+  const barColor = ownerSpace.avail==='open'||ownerSpace.status==='open' ? '#22c55e'
+                 : ownerSpace.avail==='busy'||ownerSpace.status==='busy' ? '#f59e0b' : '#ef4444';
+
+  document.getElementById('ownerSpaceName').textContent = ownerSpace.name || ownerSpace.name;
+  document.getElementById('ownerSpaceLoc').textContent  = '📍 ' + (ownerSpace.loc || ownerSpace.location || '');
+  document.getElementById('ownerSeatNum').textContent   = avail;
+  document.getElementById('ownerSeatBar').style.width   = pct + '%';
+  document.getElementById('ownerSeatBar').style.background = barColor;
+  document.getElementById('ownerBarLeft').textContent   = `${occupied} occupied`;
+  document.getElementById('ownerBarRight').textContent  = `${total} total`;
+  document.getElementById('ownerAvail').textContent     = avail;
+  document.getElementById('ownerOccupied').textContent  = occupied;
+  document.getElementById('ownerTotal').textContent     = total;
+  document.getElementById('ownerToday').textContent     = ownerTodayCount;
+  renderOwnerLog();
+}
+
+async function ownerCheckIn(n=1) {
+  if(!ownerSpace) return;
+  const avail = ownerSpace.seats !== undefined ? ownerSpace.seats : ownerSpace.available || 0;
+  if(avail <= 0){ showToast('No seats available! Space is full.','error'); return; }
+  const newAvail = Math.max(0, avail - n);
+  const newStatus = newAvail===0?'full':newAvail<=3?'busy':'open';
+  await syncSeatToServer(newAvail, newStatus);
+  ownerSpace.seats = newAvail; ownerSpace.avail = newStatus; ownerSpace.available = newAvail; ownerSpace.status = newStatus;
+  ownerTodayCount += n;
+  addOwnerLog('checkin', `${n} person${n!==1?'s':''} checked in — ${newAvail} seats remaining`);
+  renderOwnerDash();
+  syncToPlaces();
+  showToast(`✅ ${n} person${n!==1?'s':''} checked in!`);
+}
+
+async function ownerCheckOut(n=1) {
+  if(!ownerSpace) return;
+  const avail  = ownerSpace.seats !== undefined ? ownerSpace.seats : ownerSpace.available || 0;
+  const total  = ownerSpace.total_seats || 10;
+  const newAvail = Math.min(total, avail + n);
+  const newStatus = newAvail===0?'full':newAvail<=3?'busy':'open';
+  await syncSeatToServer(newAvail, newStatus);
+  ownerSpace.seats = newAvail; ownerSpace.avail = newStatus; ownerSpace.available = newAvail; ownerSpace.status = newStatus;
+  addOwnerLog('checkout', `${n} person${n!==1?'s':''} checked out — ${newAvail} seats now free`);
+  renderOwnerDash();
+  syncToPlaces();
+  showToast(`🚪 ${n} person${n!==1?'s':''} checked out!`);
+}
+
+async function ownerSetStatus(status) {
+  if(!ownerSpace) return;
+  const total = ownerSpace.total_seats || 10;
+  const newAvail = status==='full'?0:status==='open'?total:Math.min(3, ownerSpace.seats||3);
+  await syncSeatToServer(newAvail, status);
+  ownerSpace.seats = newAvail; ownerSpace.avail = status; ownerSpace.available = newAvail; ownerSpace.status = status;
+  addOwnerLog('manual', `Status manually set to ${status} — ${newAvail} seats available`);
+  renderOwnerDash();
+  syncToPlaces();
+  showToast(`Space marked as ${status}`);
+}
+
+async function syncSeatToServer(available, status) {
+  const token = localStorage.getItem('studify_token');
+  try {
+    await fetch(`${API}/api/spaces/${ownerSpace.id}`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body: JSON.stringify({available, status})
+    });
+  } catch(e) { console.log('Synced locally only'); }
+}
+
+function syncToPlaces() {
+  // update PLACES array and landing page in real time
+  const p = PLACES.find(p=>p.id===ownerSpace.id);
+  if(p){ p.seats=ownerSpace.seats; p.avail=ownerSpace.avail; }
+  applyAllFilters();
+}
+
+function addOwnerLog(type, msg) {
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'});
+  ownerLog.unshift({type, msg, time});
+  if(ownerLog.length > 50) ownerLog.pop();
+}
+
+function renderOwnerLog() {
+  const el = document.getElementById('ownerLogList');
+  document.getElementById('ownerLogCount').textContent = `${ownerLog.length} entries today`;
+  if(!ownerLog.length){
+    el.innerHTML='<div style="text-align:center;padding:3rem;opacity:0.3;font-size:0.9rem;">No activity yet.</div>';
+    return;
+  }
+  const icons = {checkin:'✅', checkout:'🚪', manual:'⚙️'};
+  el.innerHTML = ownerLog.map(l=>`
+    <div class="owner-log-item">
+      <div class="log-icon log-${l.type}">${icons[l.type]||'📝'}</div>
+      <div style="flex:1">${l.msg}</div>
+      <div class="log-time">${l.time}</div>
+    </div>`).join('');
+}
+
+function openBulkModal(mode) {
+  bulkMode = mode;
+  document.getElementById('bulkTitle').textContent = mode==='in'?'👥 Bulk Check In':'👥 Bulk Check Out';
+  document.getElementById('bulkSub').textContent   = mode==='in'?'How many persons are checking in?':'How many persons are checking out?';
+  document.getElementById('bulkNum').value = 1;
+  document.getElementById('bulkOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeBulkModal(){ document.getElementById('bulkOverlay').classList.remove('open'); document.body.style.overflow=''; }
+function confirmBulk(){
+  const n = parseInt(document.getElementById('bulkNum').value)||1;
+  closeBulkModal();
+  if(bulkMode==='in') ownerCheckIn(n); else ownerCheckOut(n);
+}
+document.getElementById('bulkOverlay').addEventListener('click',e=>{ if(e.target===document.getElementById('bulkOverlay')) closeBulkModal(); });
+
+// ═══════════════════════════════════════════════════════════
+// RATINGS
+// ═══════════════════════════════════════════════════════════
+let pendingRating = { placeId: null, stars: 0 };
+const RATING_LABELS = ['','😞 Poor','😐 Fair','🙂 Good','😊 Great','🤩 Excellent!'];
+
+function openRatingModal(placeId, name, loc) {
+  pendingRating = { placeId, stars: 0 };
+  document.getElementById('ratingPlaceName').textContent = name || 'Rate this Space';
+  document.getElementById('ratingPlaceLoc').textContent  = loc ? '📍 ' + loc : '';
+  document.getElementById('ratingLabel').textContent     = 'Tap a star to rate';
+  document.getElementById('ratingComment').value         = '';
+  document.querySelectorAll('.star-pick').forEach(s => s.classList.remove('active'));
+  document.getElementById('ratingOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeRatingModal() {
+  document.getElementById('ratingOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function pickStar(val) {
+  pendingRating.stars = val;
+  document.querySelectorAll('.star-pick').forEach(s => {
+    s.classList.toggle('active', parseInt(s.dataset.val) <= val);
+  });
+  document.getElementById('ratingLabel').textContent = RATING_LABELS[val];
+}
+
+async function submitRating() {
+  if(!pendingRating.stars){ showToast('Please select a star rating first!','error'); return; }
+  const comment = document.getElementById('ratingComment').value.trim();
+  const token   = localStorage.getItem('studify_token');
+  try {
+    const res = await fetch(`${API}/api/ratings`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+      body: JSON.stringify({
+        space_id: pendingRating.placeId,
+        stars:    pendingRating.stars,
+        comment
+      })
+    });
+    const data = await res.json();
+    if(!res.ok){ showToast(data.error||'Could not submit rating.','error'); return; }
+    // update local PLACES rating display
+    const p = PLACES.find(p=>p.id===pendingRating.placeId);
+    if(p && data.new_rating) { p.rating = data.new_rating; p.reviews = data.review_count; }
+    closeRatingModal();
+    showToast(`⭐ Thanks for rating ${data.new_rating}/5!`);
+    applyAllFilters();
+    renderUserDash();
+  } catch(e) {
+    // fallback — update locally only
+    const p = PLACES.find(p=>p.id===pendingRating.placeId);
+    if(p){ const total=(p.reviews||0)+1; p.rating=Math.round(((p.rating*(total-1))+pendingRating.stars)/total*10)/10; p.reviews=total; }
+    closeRatingModal();
+    showToast(`⭐ Rating submitted!`);
+    applyAllFilters();
+  }
+}
+
+document.getElementById('ratingOverlay').addEventListener('click', e=>{
+  if(e.target===document.getElementById('ratingOverlay')) closeRatingModal();
+});
+
+// ═══════════════════════════════════════════════════════════
+// API CONFIG
+// ═══════════════════════════════════════════════════════════
+const API = 'http://127.0.0.1:4000';
+
+// ═══════════════════════════════════════════════════════════
+// LOAD SPACES FROM FLASK API
+// ═══════════════════════════════════════════════════════════
+async function loadSpaces() {
+  const params = new URLSearchParams();
+  if (activeCat !== 'all') params.set('category', activeCat);
+  if (minStar) params.set('minRating', minStar);
+  try {
+    const res = await fetch(`${API}/api/spaces?${params}`);
+    const spaces = await res.json();
+    PLACES = spaces;
+    applyAllFilters();
+  } catch(e) {
+    console.error('Could not load spaces:', e);
+    renderPlaces(); // fall back to local data
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// REAL-TIME SOCKET
+// ═══════════════════════════════════════════════════════════
+try {
+  const socket = io(API);
+  socket.on('availability_update', ({ spaceId, available, status }) => {
+    const place = PLACES.find(p => p.id === spaceId);
+    if (place) { place.seats = available; place.avail = status; renderPlaces(); showToast('A nearby space just updated!','warn'); }
+  });
+} catch(e) { console.log('Socket not available'); }
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+loadSpaces();
+updateNav();
+document.getElementById('resDate').value=new Date().toISOString().split('T')[0];
+</script>
+</body>
+</html>

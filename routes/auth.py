@@ -1,8 +1,8 @@
 # routes/auth.py
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt
 from models.user import User
-from middleware.auth import require_admin
+from middleware.auth import require_admin, require_auth
 from extensions import db, bcrypt
 
 auth_bp = Blueprint("auth", __name__)
@@ -40,6 +40,13 @@ def login():
         additional_claims={"role": user.role}
     )
     return jsonify({"token": token, "user": user.to_dict()})
+
+@auth_bp.route("/me", methods=["GET"])
+@require_auth
+def me():
+    uid  = int(get_jwt_identity())
+    user = User.query.get_or_404(uid)
+    return jsonify(user.to_dict())
 
 @auth_bp.route("/users", methods=["GET"])
 @require_admin

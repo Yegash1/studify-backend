@@ -24,6 +24,18 @@ def my_reservations():
 def all_reservations():
     return jsonify([r.to_dict() for r in Reservation.query.all()])
 
+# Get reservations for a specific space (owner or admin)
+@res_bp.route("/space/<int:space_id>", methods=["GET"])
+@require_auth
+def space_reservations(space_id):
+    uid    = int(get_jwt_identity())
+    claims = get_jwt()
+    space  = StudySpace.query.get_or_404(space_id)
+    if claims.get("role") != "admin" and space.owner_id != uid:
+        return jsonify({"error": "Not authorized"}), 403
+    res = Reservation.query.filter_by(space_id=space_id).all()
+    return jsonify([r.to_dict() for r in res])
+
 # Make a reservation (logged-in user)
 @res_bp.route("/", methods=["POST"])
 @require_auth
@@ -34,7 +46,6 @@ def make_reservation():
     if space.available <= 0:
         return jsonify({"error": "No seats available"}), 400
 
-    # Check persons don't exceed available seats
     persons = int(data.get("persons", 1))
     if persons > space.available:
         return jsonify({"error": f"Only {space.available} seat(s) available"}), 400
@@ -71,7 +82,6 @@ def cancel_reservation(res_id):
     if res.user_id != uid and claims.get("role") != "admin":
         return jsonify({"error": "Not authorized"}), 403
     res.status = "cancelled"
-    # restore seats for the number of persons
     res.space.available += res.persons or 1
     if res.space.available > 0: res.space.status = "open"
     db.session.commit()

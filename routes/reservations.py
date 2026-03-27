@@ -1,11 +1,12 @@
 # routes/reservations.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import get_jwt_identity, get_jwt
+from flask_mail import Message
 from models.reservation import Reservation
 from models.space import StudySpace
 from models.user import User
 from middleware.auth import require_auth, require_admin
-from extensions import db, socketio
+from extensions import db, socketio, mail
 from datetime import datetime
 
 res_bp = Blueprint("reservations", __name__)
@@ -36,7 +37,7 @@ def space_reservations(space_id):
     res = Reservation.query.filter_by(space_id=space_id).all()
     return jsonify([r.to_dict() for r in res])
 
-# Make a reservation (logged-in user)
+# Make a reservation (logged-in user) — starts as "pending"
 @res_bp.route("/", methods=["POST"])
 @require_auth
 def make_reservation():
@@ -61,7 +62,8 @@ def make_reservation():
         duration_hrs=int(data["duration"]),
         persons=persons,
         total_price=data.get("totalPrice", "Free"),
-        notes=data.get("notes", "")
+        notes=data.get("notes", ""),
+        status="pending"
     )
     db.session.add(res)
     db.session.commit()
@@ -86,3 +88,99 @@ def cancel_reservation(res_id):
     if res.space.available > 0: res.space.status = "open"
     db.session.commit()
     return jsonify({"message": "Cancelled"})
+
+# Confirm reservation (owner only)
+@res_bp.route("/<int:res_id>/confirm", methods=["PATCH"])
+@require_auth
+def confirm_reservation(res_id):
+    uid    = int(get_jwt_identity())
+    claims = get_jwt()
+    res    = Reservation.query.get_or_404(res_id)
+    space  = StudySpace.query.get(res.space_id)
+
+    if claims.get("role") != "admin" and space.owner_id != uid:
+        return jsonify({"error": "Not authorized"}), 403
+
+    res.status = "confirmed"
+    db.session.commit()
+
+    try:
+        student = User.query.get(res.user_id)
+        msg = Message(
+            subject=f"Reservation Confirmed - {space.name}",
+            recipients=[student.email],
+            html=f"""
+            <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
+              <div style="background:#0f1f3d;padding:2rem;border-radius:12px 12px 0 0;text-align:center;">
+                <h1 style="color:white;margin:0;font-size:1.8rem;">STUDIFY</h1>
+                <p style="color:#a8d8d8;margin:0.5rem 0 0;">Your Study Space, Reserved.</p>
+              </div>
+              <div style="background:#f0ede8;padding:2rem;border-radius:0 0 12px 12px;">
+                <h2 style="color:#0f1f3d;">Reservation Confirmed!</h2>
+                <p>Hi <strong>{student.first_name}</strong>,</p>
+                <p>Your reservation at <strong>{space.name}</strong> has been confirmed by the space owner!</p>
+                <div style="background:white;border-radius:12px;padding:1.2rem;margin:1.2rem 0;">
+                  <p><strong>Space:</strong> {space.name}</p>
+                  <p><strong>Date:</strong> {res.date}</p>
+                  <p><strong>Time:</strong> {res.start_time}</p>
+                  <p><strong>Duration:</strong> {res.duration_hrs} hour(s)</p>
+                  <p><strong>Persons:</strong> {res.persons or 1}</p>
+                  <p><strong>Price:</strong> {res.total_price or 'Free'}</p>
+                </div>
+                <p style="color:#666;">Please arrive on time. See you there!</p>
+                <p style="color:#666;">- The Studify Team</p>
+              </div>
+            </div>
+            """
+        )
+        mail.send(msg)
+    except Exception as e:
+        print(f"Email error: {e}")
+
+    return jsonify({"message": "Confirmed and student notified!"})
+
+
+# Reject reservation (owner only)
+@res_bp.route("/<int:res_id>/reject", methods=["PATCH"])
+@require_auth
+def reject_reservation(res_id):
+    uid    = int(get_jwt_identity())
+    claims = get_jwt()
+    res    = Reservation.query.get_or_404(res_id)
+    space  = StudySpace.query.get(res.space_id)
+
+    if claims.get("role") != "admin" and space.owner_id != uid:
+        return jsonify({"error": "Not authorized"}), 403
+
+    res.status = "rejected"
+    space.available += res.persons or 1
+    if space.available > 0: space.status = "open"
+    db.session.commit()
+
+    try:
+        student = User.query.get(res.user_id)
+        msg = Message(
+            subject=f"Reservation Update - {space.name}",
+            recipients=[student.email],
+            html=f"""
+            <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
+              <div style="background:#0f1f3d;padding:2rem;border-radius:12px 12px 0 0;text-align:center;">
+                <h1 style="color:white;margin:0;font-size:1.8rem;">STUDIFY</h1>
+                <p style="color:#a8d8d8;margin:0.5rem 0 0;">Your Study Space, Reserved.</p>
+              </div>
+              <div style="background:#f0ede8;padding:2rem;border-radius:0 0 12px 12px;">
+                <h2 style="color:#d94f2b;">Reservation Not Available</h2>
+                <p>Hi <strong>{student.first_name}</strong>,</p>
+                <p>Unfortunately your reservation at <strong>{space.name}</strong> on <strong>{res.date}</strong> could not be accommodated.</p>
+                <p>Please try booking a different time or space on Studify.</p>
+                <p style="color:#666;">We're sorry for the inconvenience.</p>
+                <p style="color:#666;">- The Studify Team</p>
+              </div>
+            </div>
+            """
+        )
+        mail.send(msg)
+    except Exception as e:
+        print(f"Email error: {e}")
+
+    return jsonify({"message": "Rejected and student notified!"})

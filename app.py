@@ -2,7 +2,7 @@
 from flask import Flask, send_file
 from flask_cors import CORS
 from config import Config
-from extensions import db, jwt, bcrypt, socketio
+from extensions import db, jwt, bcrypt, socketio, mail
 
 def create_app():
     app = Flask(__name__)
@@ -13,6 +13,7 @@ def create_app():
     jwt.init_app(app)
     bcrypt.init_app(app)
     socketio.init_app(app)
+    mail.init_app(app)  # Initialize mail extension
 
     from routes.auth         import auth_bp
     from routes.spaces       import spaces_bp

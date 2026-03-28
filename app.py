@@ -7,6 +7,7 @@ from extensions import db, jwt, bcrypt, socketio, mail
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.url_map.strict_slashes = False
 
     CORS(app, resources={r"/api/*": {
         "origins": ["https://studify-frontend-ky93n5yks-yegash1s-projects.vercel.app",

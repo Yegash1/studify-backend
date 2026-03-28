@@ -10,10 +10,7 @@ def create_app():
     app.url_map.strict_slashes = False
 
     CORS(app, resources={r"/api/*": {
-        "origins": ["https://studify-frontend-ky93n5yks-yegash1s-projects.vercel.app",
-                    "https://*.vercel.app",
-                    "http://127.0.0.1:4000",
-                    "http://localhost:4000"],
+        "origins": "*"
         "methods": ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
         "allow_headers": ["Content-Type","Authorization"]
     }})

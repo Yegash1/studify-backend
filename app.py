@@ -9,11 +9,7 @@ def create_app():
     app.config.from_object(Config)
     app.url_map.strict_slashes = False
 
-    CORS(app, resources={r"/api/*": {
-        "origins": "*"
-        "methods": ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
-        "allow_headers": ["Content-Type","Authorization"]
-    }})
+    CORS(app)
 
     db.init_app(app)
     jwt.init_app(app)

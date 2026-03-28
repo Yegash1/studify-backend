@@ -8,12 +8,20 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    CORS(app)
+    CORS(app, resources={r"/api/*": {
+        "origins": ["https://studify-frontend-ky93n5yks-yegash1s-projects.vercel.app",
+                    "https://*.vercel.app",
+                    "http://127.0.0.1:4000",
+                    "http://localhost:4000"],
+        "methods": ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+        "allow_headers": ["Content-Type","Authorization"]
+    }})
+
     db.init_app(app)
     jwt.init_app(app)
     bcrypt.init_app(app)
-    socketio.init_app(app)
-    mail.init_app(app)  # Initialize mail extension
+    socketio.init_app(app, cors_allowed_origins="*")
+    mail.init_app(app)
 
     from routes.auth         import auth_bp
     from routes.spaces       import spaces_bp

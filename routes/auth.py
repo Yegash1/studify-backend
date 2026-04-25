@@ -53,3 +53,41 @@ def me():
 def get_users():
     users = User.query.all()
     return jsonify([u.to_dict() for u in users])
+
+@auth_bp.route("/upgrade", methods=["POST"])
+@require_auth
+def upgrade():
+    uid  = int(get_jwt_identity())
+    user = User.query.get_or_404(uid)
+    user.role = 'premium'
+    db.session.commit()
+    token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"role": user.role}
+    )
+    return jsonify({"message": "Upgraded to premium!", "user": user.to_dict(), "token": token})
+
+@auth_bp.route("/google", methods=["POST"])
+def google_login():
+    data      = request.get_json()
+    email     = data.get("email")
+    firstName = data.get("firstName", "Google")
+    lastName  = data.get("lastName", "User")
+    if not email:
+        return jsonify({"error": "Email required"}), 400
+    # Find or create user
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        user = User(
+            first_name=firstName,
+            last_name=lastName,
+            email=email,
+            password=bcrypt.generate_password_hash("google-oauth").decode("utf-8")
+        )
+        db.session.add(user)
+        db.session.commit()
+    token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"role": user.role}
+    )
+    return jsonify({"token": token, "user": user.to_dict()})

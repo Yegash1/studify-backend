@@ -38,13 +38,15 @@ def space_reservations(space_id):
     res = Reservation.query.filter_by(space_id=space_id).all()
     return jsonify([r.to_dict() for r in res])
 
-# Make a reservation (logged-in user) — starts as "pending"
+# Make a reservation (logged-in user)
 @res_bp.route("/", methods=["POST"])
 @require_auth
 def make_reservation():
-    data  = request.get_json()
-    uid   = int(get_jwt_identity())
-    space = StudySpace.query.get_or_404(data["spaceId"])
+    data   = request.get_json()
+    uid    = int(get_jwt_identity())
+    claims = get_jwt()
+    space  = StudySpace.query.get_or_404(data["spaceId"])
+
     if space.available <= 0:
         return jsonify({"error": "No seats available"}), 400
 
@@ -56,6 +58,10 @@ def make_reservation():
     if space.available == 0:   space.status = "full"
     elif space.available <= 3: space.status = "busy"
 
+    # Premium users get auto-confirmed — verified from JWT not frontend
+    user_role = claims.get("role", "user")
+    status    = "confirmed" if user_role == "premium" else "pending"
+
     res = Reservation(
         user_id=uid, space_id=space.id,
         date=datetime.strptime(data["date"], "%Y-%m-%d").date(),
@@ -64,7 +70,7 @@ def make_reservation():
         persons=persons,
         total_price=data.get("totalPrice", "Free"),
         notes=data.get("notes", ""),
-        status="pending"
+        status=status
     )
     db.session.add(res)
     db.session.commit()
@@ -90,7 +96,7 @@ def cancel_reservation(res_id):
     db.session.commit()
     return jsonify({"message": "Cancelled"})
 
-# Confirm reservation (owner only)
+# Confirm reservation (owner or admin)
 @res_bp.route("/<int:res_id>/confirm", methods=["PATCH"])
 @require_auth
 def confirm_reservation(res_id):
@@ -144,8 +150,7 @@ def confirm_reservation(res_id):
 
     return jsonify({"message": "Confirmed and student notified!"})
 
-
-# Reject reservation (owner only)
+# Reject reservation (owner or admin)
 @res_bp.route("/<int:res_id>/reject", methods=["PATCH"])
 @require_auth
 def reject_reservation(res_id):

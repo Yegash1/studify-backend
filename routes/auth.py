@@ -57,22 +57,19 @@ def register():
         return jsonify({"error": "Email already registered"}), 409
 
     hashed = bcrypt.generate_password_hash(data["password"]).decode("utf-8")
-    token  = secrets.token_urlsafe(32)
 
     user = User(
         first_name=data.get("firstName", ""),
         last_name=data.get("lastName", ""),
         email=data["email"],
         password=hashed,
-        is_verified=False,
-        verify_token=token
+        is_verified=True,   # Auto-verified until a sending domain is configured
     )
     db.session.add(user)
     db.session.commit()
 
-    _send_verification_email(user.email, user.first_name, token)
 
-    return jsonify({"message": "Account created! Please check your email to verify your account."}), 201
+    return jsonify({"token": _make_token(user), "user": user.to_dict()}), 201
 
 
 @auth_bp.route("/login", methods=["POST"])
@@ -81,8 +78,6 @@ def login():
     user = User.query.filter_by(email=data.get("email", "")).first()
     if not user or not bcrypt.check_password_hash(user.password, data.get("password", "")):
         return jsonify({"error": "Invalid email or password"}), 401
-    if not user.is_verified:
-        return jsonify({"error": "Please verify your email before logging in."}), 403
     return jsonify({"token": _make_token(user), "user": user.to_dict()})
 
 

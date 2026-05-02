@@ -2,8 +2,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import get_jwt_identity
 from models.space import StudySpace
+from models.reservation import Reservation
 from middleware.auth import require_auth
 from extensions import db
+from datetime import date
 
 ratings_bp = Blueprint("ratings", __name__)
 
@@ -19,6 +21,16 @@ def submit_rating():
         return jsonify({"error": "Invalid rating data"}), 400
 
     space = StudySpace.query.get_or_404(space_id)
+
+    # Check the user has actually visited this space
+    confirmed_visit = Reservation.query.filter_by(
+        user_id=uid,
+        space_id=space_id,
+        status="confirmed"
+    ).filter(Reservation.date < date.today()).first()
+
+    if not confirmed_visit:
+        return jsonify({"error": "You can only rate spaces you have visited."}), 403
 
     # Check if user already rated — update if so
     existing = db.session.execute(

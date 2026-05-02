@@ -245,3 +245,59 @@ def reject_reservation(res_id):
         <p style="color:#666;">We're sorry for the inconvenience.</p>"""))
 
     return jsonify({"message": "Rejected and student notified!"})
+
+# ─── Owner analytics ────────────────────────────────────────────────────────
+@res_bp.route("/analytics/<int:space_id>", methods=["GET"])
+@require_auth
+def analytics(space_id):
+    uid    = int(get_jwt_identity())
+    claims = get_jwt()
+    space  = StudySpace.query.get_or_404(space_id)
+
+    if claims.get("role") != "admin" and space.owner_id != uid:
+        return jsonify({"error": "Not authorized"}), 403
+
+    reservations = Reservation.query.filter_by(space_id=space_id).all()
+
+    # ── Revenue by day ──────────────────────────────────────────────────────
+    revenue_by_day = {}
+    for r in reservations:
+        if r.status != "confirmed":
+            continue
+        day = str(r.date)
+        try:
+            price = float(str(r.total_price).replace("₱", "").replace(",", "").strip())
+        except (ValueError, AttributeError):
+            price = 0.0
+        revenue_by_day[day] = revenue_by_day.get(day, 0.0) + price
+
+    # ── Bookings by hour ────────────────────────────────────────────────────
+    bookings_by_hour = {}
+    for r in reservations:
+        if r.status == "cancelled" or r.status == "rejected":
+            continue
+        hour = r.start_time.hour
+        bookings_by_hour[hour] = bookings_by_hour.get(hour, 0) + 1
+
+    # ── Status breakdown ────────────────────────────────────────────────────
+    status_breakdown = {}
+    for r in reservations:
+        status_breakdown[r.status] = status_breakdown.get(r.status, 0) + 1
+
+    # ── Totals ──────────────────────────────────────────────────────────────
+    total_revenue = sum(revenue_by_day.values())
+    confirmed     = [r for r in reservations if r.status == "confirmed"]
+    avg_duration  = (
+        round(sum(r.duration_hrs for r in confirmed) / len(confirmed), 1)
+        if confirmed else 0
+    )
+
+    return jsonify({
+        "revenue_by_day":    [{"date": d, "revenue": round(v, 2)} for d, v in sorted(revenue_by_day.items())],
+        "bookings_by_hour":  [{"hour": h, "count": c} for h, c in sorted(bookings_by_hour.items())],
+        "status_breakdown":  status_breakdown,
+        "total_revenue":     round(total_revenue, 2),
+        "avg_duration":      avg_duration,
+        "total_bookings":    len(reservations),
+        "confirmed_bookings": len(confirmed)
+    })

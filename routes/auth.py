@@ -9,7 +9,7 @@ import secrets
 import os
 import requests as req
 
-auth_bp = Blueprint("auth", _name_)
+auth_bp = Blueprint("auth", __name__)
 
 
 def _make_token(user):

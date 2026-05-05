@@ -27,7 +27,7 @@ def _send_email(to_email, subject, html):
                 "Content-Type": "application/json"
             },
             json={
-                "from": "Studify <onboarding@resend.dev>",
+                "from": os.getenv("RESEND_FROM_EMAIL", "Studify <onboarding@resend.dev>"),
                 "to": [to_email],
                 "subject": subject,
                 "html": html
@@ -35,7 +35,7 @@ def _send_email(to_email, subject, html):
             timeout=10
         )
         print(f"Resend response {r.status_code}: {r.text}")
-        return r.status_code == 200
+        return r.status_code < 300
     except Exception as e:
         print(f"Email send error: {e}")
         return False

@@ -8,41 +8,16 @@ import re
 import secrets
 import os
 import requests as req
-from datetime import datetime, timedelta
 
-auth_bp = Blueprint("auth", __name__)
+auth_bp = Blueprint("auth", _name_)
 
 
 def _make_token(user):
     return create_access_token(identity=str(user.id), additional_claims={"role": user.role})
 
 
-def _send_email(to_email, subject, html):
-    """Central Resend email sender — used by all email flows."""
-    try:
-        r = req.post(
-            "https://api.resend.com/emails",
-            headers={
-                "Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "from": os.getenv("RESEND_FROM_EMAIL", "Studify <onboarding@resend.dev>"),
-                "to": [to_email],
-                "subject": subject,
-                "html": html
-            },
-            timeout=10
-        )
-        print(f"Resend response {r.status_code}: {r.text}")
-        return r.status_code < 300
-    except Exception as e:
-        print(f"Email send error: {e}")
-        return False
-
-
 def _send_verification_email(to_email, first_name, token):
-    verify_url = f"{os.getenv('FRONTEND_URL', 'https://studify-frontend.vercel.app')}?verify_token={token}"
+    verify_url = f"{os.getenv('FRONTEND_URL')}/index.html?verify_token={token}"
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
       <div style="background:#0f1f3d;padding:2rem;border-radius:12px 12px 0 0;text-align:center;">
@@ -58,27 +33,15 @@ def _send_verification_email(to_email, first_name, token):
         <p style="color:#666;">- The Studify Team</p>
       </div>
     </div>"""
-    return _send_email(to_email, "Verify your Studify account", html)
-
-
-def _send_reset_email(to_email, first_name, token):
-    reset_url = f"{os.getenv('FRONTEND_URL', 'https://studify-frontend.vercel.app')}?reset_token={token}"
-    html = f"""
-    <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
-      <div style="background:#0f1f3d;padding:2rem;border-radius:12px 12px 0 0;text-align:center;">
-        <h1 style="color:white;margin:0;font-size:1.8rem;">STUDIFY</h1>
-        <p style="color:#a8d8d8;margin:0.5rem 0 0;">Your Study Space, Reserved.</p>
-      </div>
-      <div style="background:#f0ede8;padding:2rem;border-radius:0 0 12px 12px;">
-        <h2 style="color:#0f1f3d;">Reset your password</h2>
-        <p>Hi <strong>{first_name}</strong>, we received a request to reset your password.</p>
-        <p>Click the button below to choose a new password:</p>
-        <a href="{reset_url}" style="display:inline-block;margin:1.2rem 0;padding:0.8rem 2rem;background:#1a8a8a;color:white;border-radius:8px;text-decoration:none;font-weight:bold;">Reset my password</a>
-        <p style="color:#888;font-size:0.85rem;">This link expires in 1 hour. If you didn't request this, ignore this email — your password won't change.</p>
-        <p style="color:#666;">- The Studify Team</p>
-      </div>
-    </div>"""
-    return _send_email(to_email, "Reset your Studify password", html)
+    try:
+        req.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {os.getenv('RESEND_API_KEY')}", "Content-Type": "application/json"},
+            json={"from": "Studify <onboarding@resend.dev>", "to": [to_email], "subject": "Verify your Studify account", "html": html},
+            timeout=10
+        )
+    except Exception as e:
+        print(f"Verification email error: {e}")
 
 
 @auth_bp.route("/register", methods=["POST"])
@@ -94,25 +57,19 @@ def register():
         return jsonify({"error": "Email already registered"}), 409
 
     hashed = bcrypt.generate_password_hash(data["password"]).decode("utf-8")
-    verify_token = secrets.token_urlsafe(32)
 
     user = User(
         first_name=data.get("firstName", ""),
         last_name=data.get("lastName", ""),
         email=data["email"],
         password=hashed,
-        is_verified=False,
-        verify_token=verify_token,
+        is_verified=True,   # Auto-verified until a sending domain is configured
     )
     db.session.add(user)
     db.session.commit()
 
-    _send_verification_email(user.email, user.first_name, verify_token)
 
-    return jsonify({
-        "message": "Account created! Please check your email to verify your account.",
-        "requiresVerification": True
-    }), 201
+    return jsonify({"token": _make_token(user), "user": user.to_dict()}), 201
 
 
 @auth_bp.route("/login", methods=["POST"])
@@ -121,8 +78,6 @@ def login():
     user = User.query.filter_by(email=data.get("email", "")).first()
     if not user or not bcrypt.check_password_hash(user.password, data.get("password", "")):
         return jsonify({"error": "Invalid email or password"}), 401
-    if not user.is_verified:
-        return jsonify({"error": "Please verify your email before logging in. Check your inbox for the verification link."}), 403
     return jsonify({"token": _make_token(user), "user": user.to_dict()})
 
 
@@ -145,60 +100,6 @@ def verify_email():
         "token":   _make_token(user),
         "user":    user.to_dict()
     })
-
-
-@auth_bp.route("/resend-verification", methods=["POST"])
-def resend_verification():
-    data  = request.get_json()
-    email = data.get("email", "").strip().lower()
-    user  = User.query.filter_by(email=email).first()
-    # Always return 200 so we don't leak which emails are registered
-    if user and not user.is_verified:
-        token = secrets.token_urlsafe(32)
-        user.verify_token = token
-        db.session.commit()
-        _send_verification_email(user.email, user.first_name, token)
-    return jsonify({"message": "If that email exists and is unverified, a new link has been sent."})
-
-
-@auth_bp.route("/forgot-password", methods=["POST"])
-def forgot_password():
-    data  = request.get_json()
-    email = data.get("email", "").strip().lower()
-    user  = User.query.filter_by(email=email).first()
-    # Always return 200 so we don't leak which emails are registered
-    if user:
-        token  = secrets.token_urlsafe(32)
-        expiry = datetime.utcnow() + timedelta(hours=1)
-        user.reset_token        = token
-        user.reset_token_expiry = expiry
-        db.session.commit()
-        _send_reset_email(user.email, user.first_name, token)
-    return jsonify({"message": "If that email is registered, a password reset link has been sent."})
-
-
-@auth_bp.route("/reset-password", methods=["POST"])
-def reset_password():
-    data  = request.get_json()
-    token = data.get("token", "")
-    new_password = data.get("password", "")
-
-    if len(new_password) < 6:
-        return jsonify({"error": "Password must be at least 6 characters"}), 400
-
-    user = User.query.filter_by(reset_token=token).first()
-    if not user:
-        return jsonify({"error": "Invalid or expired reset link"}), 404
-    if user.reset_token_expiry < datetime.utcnow():
-        return jsonify({"error": "Reset link has expired. Please request a new one."}), 410
-
-    user.password           = bcrypt.generate_password_hash(new_password).decode("utf-8")
-    user.reset_token        = None
-    user.reset_token_expiry = None
-    user.is_verified        = True  # If they can reset password via email, email is valid
-    db.session.commit()
-
-    return jsonify({"message": "Password reset successful! You can now log in.", "token": _make_token(user), "user": user.to_dict()})
 
 
 @auth_bp.route("/me", methods=["GET"])

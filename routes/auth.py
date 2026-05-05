@@ -42,7 +42,7 @@ def _send_email(to_email, subject, html):
 
 
 def _send_verification_email(to_email, first_name, token):
-    verify_url = f"{os.getenv('FRONTEND_URL', 'https://studify-backend-cdy8.onrender.com')}?verify_token={token}"
+    verify_url = f"{os.getenv('FRONTEND_URL', 'https://studify-frontend.vercel.app')}?verify_token={token}"
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
       <div style="background:#0f1f3d;padding:2rem;border-radius:12px 12px 0 0;text-align:center;">
@@ -62,7 +62,7 @@ def _send_verification_email(to_email, first_name, token):
 
 
 def _send_reset_email(to_email, first_name, token):
-    reset_url = f"{os.getenv('FRONTEND_URL', 'https://studify-backend-cdy8.onrender.com')}?reset_token={token}"
+    reset_url = f"{os.getenv('FRONTEND_URL', 'https://studify-frontend.vercel.app')}?reset_token={token}"
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;">
       <div style="background:#0f1f3d;padding:2rem;border-radius:12px 12px 0 0;text-align:center;">

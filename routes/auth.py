@@ -2,6 +2,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, get_jwt_identity, get_jwt
 from models.user import User
+from models.space import StudySpace
 from middleware.auth import require_admin, require_auth
 from extensions import db, bcrypt
 
@@ -35,6 +36,13 @@ def login():
     user = User.query.filter_by(email=data.get("email", "")).first()
     if not user or not bcrypt.check_password_hash(user.password, data.get("password", "")):
         return jsonify({"error": "Invalid email or password"}), 401
+
+    # ── Auto-link owner if admin pre-assigned their email to a space ──
+    owned_space = StudySpace.query.filter_by(owner_email=user.email, owner_id=None).first()
+    if owned_space:
+        owned_space.owner_id = user.id
+        db.session.commit()
+
     token = create_access_token(
         identity=str(user.id),
         additional_claims={"role": user.role}
@@ -83,6 +91,13 @@ def google_login():
         )
         db.session.add(user)
         db.session.commit()
+
+    # ── Auto-link owner for Google login too ──
+    owned_space = StudySpace.query.filter_by(owner_email=user.email, owner_id=None).first()
+    if owned_space:
+        owned_space.owner_id = user.id
+        db.session.commit()
+
     token = create_access_token(
         identity=str(user.id),
         additional_claims={"role": user.role}

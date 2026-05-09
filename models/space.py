@@ -18,6 +18,9 @@ class StudySpace(db.Model):
     tags        = db.Column(ARRAY(db.String))
     owner_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     owner_email = db.Column(db.String(255), nullable=True)
+    gcash_number = db.Column(db.String(20), nullable=True)
+    maya_number  = db.Column(db.String(20), nullable=True)
+    owner_name   = db.Column(db.String(255), nullable=True)
 
     def to_dict(self):
         return {
@@ -35,4 +38,7 @@ class StudySpace(db.Model):
             "tags":        self.tags or [],
             "owner_id":    self.owner_id,
             "owner_email": self.owner_email,
+            "gcash":       self.gcash_number,
+            "maya":        self.maya_number,
+            "ownerName":   self.owner_name,
         }

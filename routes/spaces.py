@@ -56,8 +56,11 @@ def add_space():
         price=data.get("price", "Free"),
         emoji=data.get("emoji", "📍"),
         tags=data.get("tags", []),
-        owner_email=owner_email,  # save email even if no account yet
-        owner_id=owner_id         # link id if account already exists
+        owner_email=owner_email,
+        owner_id=owner_id,
+        gcash_number=data.get("gcash_number"),
+        maya_number=data.get("maya_number"),
+        owner_name=data.get("owner_name"),
     )
     db.session.add(space)
     db.session.commit()

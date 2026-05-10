@@ -27,7 +27,7 @@ def submit_rating():
         user_id=uid,
         space_id=space_id,
         status="confirmed"
-    ).filter(Reservation.date < date.today()).first()
+    ).filter(Reservation.date <= date.today()).first()
 
     if not confirmed_visit:
         return jsonify({"error": "You can only rate spaces you have visited."}), 403

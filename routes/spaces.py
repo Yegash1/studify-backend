@@ -75,8 +75,13 @@ def update_space(space_id):
     if claims.get("role") != "admin" and space.owner_id != uid:
         return jsonify({"error": "Not authorized"}), 403
     data = request.get_json()
+    # Whitelist: owners cannot overwrite rating, owner identity, or seat counts directly
+    OWNER_ALLOWED = {"name", "category", "location", "hours", "price", "emoji", "tags",
+                     "status", "available", "gcash_number", "maya_number"}
+    ADMIN_ALLOWED = OWNER_ALLOWED | {"total_seats", "rating", "owner_email", "owner_id", "owner_name"}
+    allowed = ADMIN_ALLOWED if claims.get("role") == "admin" else OWNER_ALLOWED
     for key, val in data.items():
-        if hasattr(space, key):
+        if key in allowed and hasattr(space, key):
             setattr(space, key, val)
     db.session.commit()
     return jsonify(space.to_dict())

@@ -534,7 +534,7 @@ def cancel_reservation(res_id):
     claims = get_jwt()
     res    = Reservation.query.get_or_404(res_id)
 
-    if res.user_id != uid and claims.get("role") not in ("admin", "owner"):
+    if res.user_id != uid and claims.get("role") != "admin" and res.space.owner_id != uid:
         return jsonify({"error": "Not authorized"}), 403
 
     if res.status in ("cancelled", "rejected"):

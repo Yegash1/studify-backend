@@ -65,11 +65,16 @@ def _reservation_details_html(res):
 
 # ─── Conflict check ──────────────────────────────────────────────────────────
 
-def _has_conflict(space_id, date, start_time, duration_hrs, exclude_id=None):
+def _has_conflict(space_id, date, start_time, duration_hrs, exclude_id=None, persons_needed=1):
     """
     Check overlap against confirmed + awaiting_payment + payment_review reservations.
     Pending reservations are NOT counted — seats aren't held until owner approves.
+    Returns True only if booked persons + persons_needed exceeds total_seats.
     """
+    from models.space import StudySpace
+    space    = StudySpace.query.get(space_id)
+    total    = space.total_seats or 10
+
     start_dt = datetime.combine(date, start_time)
     end_dt   = start_dt + timedelta(hours=duration_hrs)
 
@@ -79,14 +84,20 @@ def _has_conflict(space_id, date, start_time, duration_hrs, exclude_id=None):
         Reservation.status.in_(["confirmed", "awaiting_payment", "payment_review"])
     ).all()
 
+    booked = 0
+    last_overlap = None
     for r in existing:
         if exclude_id and r.id == exclude_id:
             continue
         r_start = datetime.combine(r.date, r.start_time)
         r_end   = r_start + timedelta(hours=r.duration_hrs)
         if start_dt < r_end and end_dt > r_start:
-            return True, r
-    return False, None
+            booked += (r.persons or 1)
+            last_overlap = r
+
+    if booked + persons_needed > total:
+        return True, last_overlap, booked, total
+    return False, None, booked, total
 
 
 # ─── My reservations (logged-in user) ───────────────────────────────────────
@@ -158,17 +169,80 @@ def make_reservation():
     if payment_method not in ("gcash", "maya", "on_arrival"):
         return jsonify({"error": "Invalid payment method"}), 400
 
-    # Conflict check against already-approved reservations only
-    conflict, conflicting = _has_conflict(space.id, res_date, res_time, duration)
+    # Conflict check — only blocks if booked persons + new request exceeds total_seats
+    conflict, conflicting, booked, total = _has_conflict(space.id, res_date, res_time, duration, persons_needed=persons)
     if conflict:
-        c_start = datetime.combine(conflicting.date, conflicting.start_time).strftime("%I:%M %p")
-        c_end   = (datetime.combine(conflicting.date, conflicting.start_time)
-                   + timedelta(hours=conflicting.duration_hrs)).strftime("%I:%M %p")
+        seats_left = total - booked
         return jsonify({
-            "error": f"This space is already booked from {c_start} to {c_end} on that date. Please choose a different time."
+            "error": f"Not enough seats for that time slot. {seats_left} seat(s) available, you requested {persons}."
         }), 409
 
-    # ── Seats are NOT deducted here — only after owner approval ─────────────
+    student = User.query.get(uid)
+    is_premium = student.role == "premium"
+
+    # ── Premium users: auto-confirm immediately (skip owner approval) ─────────
+    if is_premium:
+        if space.available < persons:
+            return jsonify({"error": "Not enough seats available"}), 400
+
+        if payment_method == "on_arrival":
+            initial_status = "confirmed"
+        else:
+            initial_status = "awaiting_payment"
+
+        res = Reservation(
+            user_id=uid,
+            space_id=space.id,
+            date=res_date,
+            start_time=res_time,
+            duration_hrs=duration,
+            persons=persons,
+            total_price=data.get("totalPrice", "Free"),
+            payment_method=payment_method,
+            notes=data.get("notes", ""),
+            status=initial_status
+        )
+        db.session.add(res)
+
+        # Deduct seats immediately for premium users
+        space.available -= persons
+        if space.available == 0:   space.status = "full"
+        elif space.available <= 3: space.status = "busy"
+
+        db.session.commit()
+
+        socketio.emit("availability_update", {
+            "spaceId": space.id,
+            "available": space.available,
+            "status": space.status
+        })
+
+        if payment_method == "on_arrival":
+            _send_email(
+                student.email,
+                f"Reservation Confirmed - {space.name}",
+                _email_html("#1a7a4a", "Reservation Auto-Confirmed! ⭐✅", f"""
+                <p>Hi <strong>{student.first_name}</strong>,</p>
+                <p>As a Premium member, your reservation at <strong>{space.name}</strong> has been <strong>automatically confirmed</strong> — no waiting needed!</p>
+                {_reservation_details_html(res)}
+                <p style="color:#666;">Please arrive on time and pay at the venue. See you there!</p>""")
+            )
+        else:
+            method_label = "GCash" if payment_method == "gcash" else "Maya"
+            pay_number   = space.gcash_number if payment_method == "gcash" else space.maya_number
+            _send_email(
+                student.email,
+                f"Booking Auto-Confirmed — Please Send Payment - {space.name}",
+                _email_html("#1a7a4a", "Booking Auto-Confirmed! Now Send Payment ⭐💳", f"""
+                <p>Hi <strong>{student.first_name}</strong>,</p>
+                <p>As a Premium member, your booking at <strong>{space.name}</strong> has been <strong>automatically confirmed</strong>!</p>
+                {_reservation_details_html(res)}
+                <p>Please send payment via <strong>{method_label}</strong> to <strong>{pay_number or 'the number provided by the owner'}</strong> and upload your receipt in the app.</p>""")
+            )
+
+        return jsonify({**res.to_dict(), "auto_confirmed": True}), 201
+
+    # ── Regular users: status pending, awaiting owner approval ───────────────
     res = Reservation(
         user_id=uid,
         space_id=space.id,
@@ -185,7 +259,6 @@ def make_reservation():
     db.session.commit()
 
     # Notify student: booking received, waiting for owner approval
-    student = User.query.get(uid)
     _send_email(
         student.email,
         f"Booking Request Received - {space.name}",
